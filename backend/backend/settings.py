@@ -50,6 +50,7 @@ else:
 
 INSTALLED_APPS = [
     'core_db',
+    'auth_api',
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
