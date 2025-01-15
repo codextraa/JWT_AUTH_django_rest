@@ -28,10 +28,16 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # SECURITY WARNING: keep the secret key used in production secret!
+
+# SECRET_KEYS
 SECRET_KEY = os.getenv("SECRET_KEY")
+PRIVATE_KEY = open(os.path.join(BASE_DIR, "private.key")).read()
+PUBLIC_KEY = open(os.path.join(BASE_DIR, "public.key")).read()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", 'False') == 'True'
+
+TESTING = os.getenv("TESTING", 'False') == 'True'
 
 # Allowed Hosts
 if ENVIRONMENT == "development":
@@ -43,6 +49,10 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    "drf_spectacular",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -87,8 +98,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DATABASE_ENGINE'),
+        'NAME': os.getenv('DATABASE_NAME'),
+        'USER': os.getenv('DATABASE_USER'),
+        'PASSWORD': os.getenv('DATABASE_PASSWORD'),
+        'HOST': os.getenv('DATABASE_HOST', 'localhost'),
+        'PORT': os.getenv('DATABASE_PORT', '5432'),
     }
 }
 
@@ -133,3 +148,68 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# REST Framework Settings
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': (
+        'drf_spectacular.openapi.AutoSchema',
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+# Simple JWT Settings
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    
+     # Set the RS256 algorithm
+    "ALGORITHM": "RS256",
+    
+    # Set the private key for signing the token
+    "SIGNING_KEY": PRIVATE_KEY,
+    
+    # Set the public key for verifying the token
+    "VERIFYING_KEY": PUBLIC_KEY,
+    
+    # Token Settings
+    "USER_ID_CLAIM": "user_id",
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
+# CORS Settings
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.56.1:3000",
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
+    "https://192.168.56.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF Settings
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",  
+    "http://127.0.0.1:3000",
+    "https://localhost:3000",  
+    "https://127.0.0.1:3000",
+]
+
+CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
+CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
+CSRF_COOKIE_SAMESITE = 'Lax' # Prevent cross-origin requests
+
+if TESTING:
+    MEDIA_URL = '/media/test_media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', 'test_media')
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media')
