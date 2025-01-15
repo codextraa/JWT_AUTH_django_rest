@@ -49,6 +49,7 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
+    'core_db',
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -202,6 +203,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost:3000",  
     "https://127.0.0.1:3000",
 ]
+
+AUTH_USER_MODEL = 'core_db.User'
 
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
 CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
