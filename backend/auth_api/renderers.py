@@ -1,36 +1,26 @@
-# from rest_framework.renderers import JSONRenderer
+from rest_framework.renderers import JSONRenderer
 
+class UserRenderer(JSONRenderer):
 
-# class CustomRenderer(JSONRenderer):
-#     """
-#     Custom Renderer to format response data.
-#     - Wraps successful JSON responses in a "data" key.
-#     - Wraps error JSON responses in an "error" key.
-#     - Handles binary data (e.g., images) without wrapping.
-#     """
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        response = renderer_context.get("response", None)
 
-#     def render(self, data, accepted_media_type=None, renderer_context=None):
-#         response = renderer_context.get("response", None)
-#         request = renderer_context.get("request", None)
+        # Check for binary data or non-JSON responses (e.g., images, files)
+        if response is not None and (
+            response.status_code < 400 and 
+            accepted_media_type and "image" in accepted_media_type
+):
+            return data
 
-#         # Check for image or binary data
-#         if response is not None and (
-#             response.status_code >= 400 or "image" in response.get('Content-Type', '')
-#         ):
-#             # If it's binary data (image), skip wrapping
-#             return data
-
-#         # Handle JSON errors
-#         if response is not None and response.status_code >= 400:
-#             if isinstance(data, dict):
-#                 data = {"error": data}
-#             else:
-#                 data = {"error": {"detail": data}}
+        if response is not None and response.status_code >= 400:
+            if "error" in data:
+                data = {"errors": data["error"]}
+            if "errors" not in data:
+                data = {"errors": data}
             
-#             data["status_code"] = response.status_code
+            data["status_code"] = response.status_code
 
-#         # Handle JSON successful responses
-#         else:
-#             data = {"data": data}
+        else:
+            data = {"data": data}
 
-#         return super().render(data, accepted_media_type, renderer_context)
+        return super().render(data, accepted_media_type, renderer_context)

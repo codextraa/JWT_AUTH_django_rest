@@ -1,15 +1,23 @@
 """Views for Auth API."""
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from .renderers import (
+    UserRenderer
+)
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
+    UserListSerializer,
+    UserActionSerializer,
+    UserFilterSerializer
 )
 
 
@@ -18,62 +26,74 @@ class UserViewSet(ModelViewSet):
     queryset = get_user_model().objects.all() # get all the users
     serializer_class = UserSerializer # User Serializer initialized
     authentication_classes = [JWTAuthentication] # Using jwtoken
+    renderer_classes = [UserRenderer]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = UserFilterSerializer
 
     def get_permissions(self):
         """Permission for CRUD operations."""
         if self.action == 'create': # No permission while creating user
             permission_classes = [AllowAny]
+        elif (self.action == 'activate_user' or self.action == 'deactivate_user' 
+               or self.action == 'delete'): # Only Admins are allowed
+            permission_classes = [IsAuthenticated, IsAdminUser]
         else: # RUD operations need permissions
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         """Return the serializer class for the action."""
+        if self.action == "list": # List of users handled with different serializer
+            return UserListSerializer
+        if self.action == "deactivate_user" or self.action == "activate_user": # Deactivation handled with different serializer
+            return UserActionSerializer
         if self.action == "upload_image": # Image handled with different serializer
             return UserImageSerializer
         return super().get_serializer_class()
-    
-    def create(self, request, *args, **kwargs):
-        """Create a new user."""
-        print('request', request)
-        response = super().create(request, *args, **kwargs)
-        print('response', response)
 
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile."""
         current_user = self.request.user
+        print(request.data)
         user = self.get_object()
 
-        if 'is_active' or 'is_staff' or 'is_superuser' in request.data:
+        if ('is_active' in request.data or 'is_staff' in request.data or 
+            'is_superuser' in request.data):
             return Response(
-                {"detail": "You cannot update the is_active, is_staff or is_superuser field."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "You cannot update the is_active, is_staff or is_superuser field."},
+                status=status.HTTP_403_FORBIDDEN
             )
 
         if current_user.id != user.id and not current_user.is_superuser:
             return Response(
-                {"detail": "You do not have permission to update this user."},
+                {"error": "You do not have permission to update this user."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        """Allow only superusers to delete normal or staff users."""
+        """Allow only superusers to delete normal or staff users and clean up profile image."""
         current_user = self.request.user
         user_to_delete = self.get_object()
 
         if not current_user.is_superuser:
             return Response(
-                {"detail": "Only superusers can delete users."},
+                {"error": "Only superusers can delete users."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         if user_to_delete.is_superuser:
             return Response(
-                {"detail": "You cannot delete superusers"},
+                {"error": "You cannot delete superusers"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        # Check and delete the profile image if it's not the default image
+        default_image_path = 'profile_images/default_profile.jpg'
+        print(user_to_delete)
+        if user_to_delete.profile_img and user_to_delete.profile_img.name != default_image_path:
+            user_to_delete.profile_img.delete(save=False)
 
         return super().destroy(request, *args, **kwargs)
 
@@ -98,6 +118,22 @@ class UserViewSet(ModelViewSet):
     def upload_image(self, request, pk=None):
         """Update user profile image"""
         user = self.get_object()  # get the user
+        current_user = self.request.user  # Get the user making the request
+
+        # Ensure the request is made by the user themselves or a superuser
+        if current_user.id != user.id and not current_user.is_superuser:
+            return Response(
+                {"error": "You do not have permission to upload an image for this user."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+            
+        default_image_path = 'profile_images/default_profile.jpg'  # Define the default image path
+
+        # Check if the user has an existing image that is not the default image
+        if user.profile_img and user.profile_img.name != default_image_path:
+            # Remove the previous image file
+            user.profile_img.delete(save=False)
+        
         serializer = self.get_serializer(
             user,
             data=request.data,
@@ -116,14 +152,14 @@ class UserViewSet(ModelViewSet):
 
         if not user_to_deactivate.is_active:
             return Response(
-                {"detail": "User is already deactivated."},
+                {"error": "User is already deactivated."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if not (current_user.is_superuser or current_user.is_staff):
             if user_to_deactivate != current_user:
                 return Response(
-                    {"detail": "You do not have permission to deactivate users."},
+                    {"error": "You do not have permission to deactivate users."},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
@@ -134,19 +170,19 @@ class UserViewSet(ModelViewSet):
                 detail = "You cannot deactivate yourself as a staff. Contact a superuser"
 
             return Response(
-                {"detail": detail},
+                {"error": detail},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         if user_to_deactivate.is_staff and not current_user.is_superuser:
             return Response(
-                {"detail": "Only superusers can deactivate staff users."},
+                {"error": "Only superusers can deactivate staff users."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         if user_to_deactivate.is_superuser:
             return Response(
-                {"detail": "You cannot deactivate a superuser."},
+                {"error": "You cannot deactivate a superuser."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -157,7 +193,7 @@ class UserViewSet(ModelViewSet):
         user_to_deactivate.save()
 
         return Response(
-            {"detail": f"User {user_to_deactivate.email} has been deactivated."},
+            {"error": f"User {user_to_deactivate.email} has been deactivated."},
             status=status.HTTP_200_OK,
         )
 
@@ -169,25 +205,25 @@ class UserViewSet(ModelViewSet):
 
         if user_to_activate.is_active:
             return Response(
-                {"detail": "User is not deactivated."},
+                {"error": "User is not deactivated."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if not (current_user.is_superuser or current_user.is_staff):
             return Response(
-                {"detail": "You do not have permission to activate users."},
+                {"error": "You do not have permission to activate users."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         if user_to_activate == current_user:
             return Response(
-                {"detail": "You cannot activate yourself."},
+                {"error": "You cannot activate yourself."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         if user_to_activate.is_staff and not current_user.is_superuser:
             return Response(
-                {"detail": "Only superusers can activate staff users."},
+                {"error": "Only superusers can activate staff users."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -198,6 +234,6 @@ class UserViewSet(ModelViewSet):
         user_to_activate.save()
 
         return Response(
-            {"detail": f"User {user_to_activate.email} has been reactivated."},
+            {f"User {user_to_activate.email} has been reactivated."},
             status=status.HTTP_200_OK,
         )

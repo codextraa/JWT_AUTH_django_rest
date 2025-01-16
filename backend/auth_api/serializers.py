@@ -1,7 +1,32 @@
+import re, django_filters
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-import re
 
+
+class UserFilterSerializer(django_filters.FilterSet):
+    """User Filter"""
+    email = django_filters.CharFilter(lookup_expr='icontains')
+    username = django_filters.CharFilter(lookup_expr='icontains')
+    
+    class Meta:
+        model = get_user_model()
+        fields = ('email', 'username')
+
+class UserListSerializer(serializers.ModelSerializer):
+    """List User Serializer"""
+
+    class Meta:
+        model = get_user_model()
+        fields = ('id', 'email', 'username', 'is_active', 'is_staff', 'is_superuser')
+        read_only_fields = ('id', 'email', 'username', 'is_active', 'is_staff', 'is_superuser')
+        
+class UserActionSerializer(serializers.ModelSerializer):
+    """Action User Serializer"""
+
+    class Meta:
+        model = get_user_model()
+        fields = ('id',)
+        read_only_fields = ('id',)
 
 class UserSerializer(serializers.ModelSerializer):
     """User Serializer"""
@@ -87,23 +112,6 @@ class UserSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create and return a user with encrypted password."""
-        errors = {}
-        email = validated_data['email']
-        username = validated_data['username']
-        password = validated_data['password']
-        
-        if not email:
-            errors['email'] = 'Email is required.'
-        
-        if not username:
-            errors['username'] = 'Username is required.'
-            
-        if not password:
-            errors['password'] = 'Password is required.'
-        
-        if errors:
-            raise serializers.ValidationError(errors)
-            
         profile_img = validated_data.pop('profile_img', None)
         
         if not profile_img:
