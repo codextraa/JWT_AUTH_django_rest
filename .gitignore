@@ -171,5 +171,5 @@ cython_debug/
 .pypirc
 
 #Secret keys
-private.key
-public.key
+private_key.pem
+public_key.pem

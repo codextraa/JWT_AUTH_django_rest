@@ -1,5 +1,7 @@
 asgiref==3.8.1
 attrs==24.3.0
+cffi==1.17.1
+cryptography==44.0.0
 Django==5.1.5
 django-cors-headers==4.6.0
 django-filter==24.3
@@ -14,6 +16,7 @@ Markdown==3.7
 phonenumbers==8.13.52
 pillow==11.1.0
 psycopg2-binary==2.9.10
+pycparser==2.22
 PyJWT==2.10.1
 python-dotenv==1.0.1
 PyYAML==6.0.2

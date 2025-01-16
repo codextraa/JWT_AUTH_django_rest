@@ -8,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = get_user_model()
-        fields = ('id', 'email', 'password1', 'password2', 'username', 'first_name', 
+        fields = ('id', 'email', 'password', 'username', 'first_name', 
                   'last_name', 'phone_number', 'profile_img', 'slug', 
                   'is_active', 'is_staff', 'is_superuser')
         read_only_fields = ('id', 'is_superuser')
@@ -39,27 +39,24 @@ class UserSerializer(serializers.ModelSerializer):
         if errors:
             raise serializers.ValidationError(errors)
         
-    def _validate_password(self, password1, password2):
+    def _validate_password(self, password):
         """Password Validation"""
         errors = {}
         
-        if len(password1) < 8:
+        if len(password) < 8:
             errors['short'] = 'Password must be at least 8 characters long.'
             
-        if not re.search(r"[a-z]", password1):
+        if not re.search(r"[a-z]", password):
             errors['lower'] = 'Password must contain at least one lowercase letter.'
             
-        if not re.search(r"[A-Z]", password1):
+        if not re.search(r"[A-Z]", password):
             errors['upper'] = 'Password must contain at least one uppercase letter.'
             
-        if not re.search(r"[0-9]", password1):
+        if not re.search(r"[0-9]", password):
             errors['number'] = 'Password must contain at least one number.'
             
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password1):
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
             errors['special'] = 'Password must contain at least one special character.'
-            
-        if password1 != password2:
-            errors['match'] = 'Passwords do not match.'
             
         if errors:
             raise serializers.ValidationError(errors)
@@ -75,10 +72,9 @@ class UserSerializer(serializers.ModelSerializer):
         if username:
             self._validate_username(username)
         
-        password1 = attrs.get('password1')
-        password2 = attrs.get('password2')
-        if password1 and password2:
-            self._validate_password(password1, password2)
+        password = attrs.get('password')
+        if password:
+            self._validate_password(password)
         
         attrs = super().validate(attrs)
         
@@ -94,8 +90,7 @@ class UserSerializer(serializers.ModelSerializer):
         errors = {}
         email = validated_data['email']
         username = validated_data['username']
-        password1 = validated_data['password1']
-        password2 = validated_data['password2']
+        password = validated_data['password']
         
         if not email:
             errors['email'] = 'Email is required.'
@@ -103,11 +98,8 @@ class UserSerializer(serializers.ModelSerializer):
         if not username:
             errors['username'] = 'Username is required.'
             
-        if not password1:
-            errors['password1'] = 'Password is required.'
-            
-        if not password2:
-            errors['password2'] = 'Password confirmation is required.'
+        if not password:
+            errors['password'] = 'Password is required.'
         
         if errors:
             raise serializers.ValidationError(errors)
@@ -127,6 +119,7 @@ class UserSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         if password:
+            self._validate_password(password)
             instance.set_password(password)
             instance.save()
 
@@ -140,16 +133,15 @@ class UserImageSerializer(serializers.ModelSerializer):
 
     def validate_profile_img(self, value):
         """Validate profile image"""
-        max_size = 5 * 1024 * 1024 # 5MB
-        valid_file_types = ['image/jpeg', 'image/png', 'image/gif'] # valid image types
-
         errors = {}
+        max_size = 3 * 1024 * 1024 # 3MB
+        valid_file_types = ['image/jpeg', 'image/png'] # valid image types
         
         if value.size > max_size:
-            errors['size'] = 'Profile image size should not exceed 5MB.'
+            errors['size'] = 'Profile image size should not exceed 3MB.'
 
         if value.content_type not in valid_file_types:
-            errors['type'] = 'Profile image type should be JPEG, PNG or GIF.'
+            errors['type'] = 'Profile image type should be JPEG, PNG'
             
         if errors:
             raise serializers.ValidationError(errors)

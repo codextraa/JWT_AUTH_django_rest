@@ -31,8 +31,8 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # SECRET_KEYS
 SECRET_KEY = os.getenv("SECRET_KEY")
-PRIVATE_KEY = open(os.path.join(BASE_DIR, "private.key")).read()
-PUBLIC_KEY = open(os.path.join(BASE_DIR, "public.key")).read()
+PRIVATE_KEY = open(os.path.join(BASE_DIR, "private_key.pem")).read()
+PUBLIC_KEY = open(os.path.join(BASE_DIR, "public_key.pem")).read()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", 'False') == 'True'
@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    "drf_spectacular",
+    'drf_spectacular',
+    'phonenumber_field',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -153,19 +154,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework Settings
 
+# Never give comma after drf_spectacular.openapi.AutoSchema
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': (
-        'drf_spectacular.openapi.AutoSchema',
+        'drf_spectacular.openapi.AutoSchema'
     ),
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
     ),
 }
 
 # Simple JWT Settings
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     
      # Set the RS256 algorithm
@@ -205,11 +210,11 @@ CSRF_TRUSTED_ORIGINS = [
     "https://127.0.0.1:3000",
 ]
 
-AUTH_USER_MODEL = 'core_db.User'
-
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
 CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
 CSRF_COOKIE_SAMESITE = 'Lax' # Prevent cross-origin requests
+
+AUTH_USER_MODEL = 'core_db.User'
 
 if TESTING:
     MEDIA_URL = '/media/test_media/'
