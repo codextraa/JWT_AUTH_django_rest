@@ -53,6 +53,14 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom User Class"""
     
+    AUTH_PROVIDER = [
+        ('email', 'Email'),
+        ('google', 'Google'),
+        ('facebook', 'Facebook'),
+        ('instagram', 'Instagram'),
+        ('linkedin', 'LinkedIn'),
+        ('github', 'GitHub'),
+    ]
     email = models.EmailField(max_length=255, unique=True)
     username = models.CharField(max_length=128, unique=True, blank=True, null=True)
     first_name = models.CharField(max_length=50, blank=True, null=True)
@@ -63,6 +71,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
+    auth_provider = models.CharField(
+        max_length=20, 
+        choices=AUTH_PROVIDER, 
+        default='email'
+    )
     slug = models.SlugField(unique=True, blank=True, null=True)
 
     objects = UserManager()

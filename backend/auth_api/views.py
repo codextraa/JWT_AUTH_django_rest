@@ -8,12 +8,16 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
+from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from dj_rest_auth.registration.views import SocialLoginView
 from .renderers import ViewRenderer
 from .utils import (
     EmailOtp,
@@ -29,7 +33,8 @@ from .serializers import (
     TokenRequestSerializer,
     PasswordResetSerializer,
     PasswordResetRequestSerializer,
-    InputPasswordResetSerializer
+    InputPasswordResetSerializer,
+    GoogleUserSerializer
 )
 
 
@@ -68,6 +73,21 @@ def check_user_validity(email):
         return Response({"error": "Email is not verified. You must verify your email first"}, status=status.HTTP_400_BAD_REQUEST)
     
     return user
+
+def get_user_role(user):
+    """Get user role."""
+    user_groups = user.groups.all()
+    
+    if user_groups.filter(name='Default').exists():
+        user_role = 'Default'
+    elif user_groups.filter(name='Admin').exists():
+        user_role = 'Admin'
+    elif user_groups.filter(name='Superuser').exists():
+        user_role = 'Superuser'
+    else:
+        user_role = 'UnAuthorized'
+        
+    return user_role
 
 
 class LoginView(APIView):
@@ -225,16 +245,8 @@ class TokenView(TokenObtainPairView):
         
         # Get user role and id
         user = get_user_model().objects.get(email=email)
-        user_groups = user.groups.all()
         
-        if user_groups.filter(name='Default').exists():
-            user_role = 'Default'
-        elif user_groups.filter(name='Admin').exists():
-            user_role = 'Admin'
-        elif user_groups.filter(name='Superuser').exists():
-            user_role = 'Superuser'
-        else:
-            user_role = 'UnAuthorized'
+        user_role = get_user_role(user)
         
         response.data['user_role'] = user_role
         response.data['user_id'] = user.id
@@ -315,7 +327,7 @@ class EmailVerifyView(APIView):
     
 class PasswordResetView(APIView):
     """View for resetting user's password."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     
     def check_throttles(self, request):
@@ -774,3 +786,58 @@ class UserViewSet(ModelViewSet):
             {f"User {user_to_activate.email} has been reactivated."},
             status=status.HTTP_200_OK,
         )
+        
+class GoogleSignupLoginView(SocialLoginView):
+    """Google login view."""
+    adapter_class = GoogleOAuth2Adapter
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Handles Google OAuth2 signup and login.
+        """
+        try:
+            # Perform the standard Google OAuth process
+            response = super().post(request, *args, **kwargs)
+
+            # Check if the social account exists and retrieve the user
+            user = self.get_or_create_user_from_social_account(request)
+
+            # Generate JWT tokens for the user
+            refresh = RefreshToken.for_user(user)
+            response.data['access'] = str(refresh.access_token)
+            response.data['refresh'] = str(refresh)
+            response.data['user_id'] = user.id
+            response.data['is_new_user'] = user.is_new_user  # Optional flag
+            
+            return response
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_or_create_user_from_social_account(self, request):
+        """
+        Checks if a user exists for the social account, and if not, creates one.
+        """
+        try:
+            # Get the social account associated with the current request
+            social_account = SocialAccount.objects.get(user=request.user)
+            user = social_account.user
+
+            return user
+        except SocialAccount.DoesNotExist:
+            # Extract data from the social account
+            social_data = self.adapter_class.complete_login(request, None).account.extra_data
+            email = social_data.get("email")
+            first_name = social_data.get("given_name", "")
+            last_name = social_data.get("family_name", "")
+
+            # If no user exists, create a new user
+            serializer = GoogleUserSerializer(data={
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+            })
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+
+            return user

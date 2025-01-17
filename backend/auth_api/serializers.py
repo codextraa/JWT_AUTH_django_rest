@@ -196,16 +196,21 @@ class UserImageSerializer(serializers.ModelSerializer):
 
         return value
     
-    
-# class MediaFileSerializer(serializers.ModelSerializer):
-#     file_url = serializers.SerializerMethodField()
+class GoogleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ('id', 'email', 'first_name', 'last_name')
+        read_only_fields = ('id',)
 
-#     class Meta:
-#         model = MediaFile
-#         fields = ('id', 'name', 'file_url')
-
-#     def get_file_url(self, obj):
-#         request = self.context.get('request')
-#         if request:
-#             return request.build_absolute_uri(obj.file.url)
-#         return obj.file.url
+    def create(self, validated_data):
+        """
+        Create a new user or update an existing one.
+        """
+        user, _ = get_user_model().objects.get_or_create(
+            email=validated_data['email'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            is_email_verified=True,
+            auth_provider='google',
+        )
+        return user
