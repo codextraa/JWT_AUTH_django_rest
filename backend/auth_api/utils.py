@@ -21,7 +21,7 @@ class EmailOtp:
         try:
             email = EmailMessage(
                 subject = '2 Factor Login Authentication',
-                body = f'Hi {email},\n\nYour OTP code is: {otp}\nThe OTP will expire in 10 minutes',
+                body = f'Hi {email},\n\nYour OTP code is: {otp}\n\nThe OTP will expire in 10 minutes',
                 to = [email]
             )
             email.send()
@@ -47,7 +47,7 @@ class EmailLink:
     EXPIRY_SECONDS = 600  # 10 minutes
 
     @classmethod
-    def _generate_link(cls, email):
+    def _generate_link(cls, email, action):
         """Generate a signed token for the email."""
         serializer = URLSafeTimedSerializer(cls.SECRET_KEY)
         token = serializer.dumps(email, salt=cls.SALT)
@@ -63,7 +63,12 @@ class EmailLink:
         query_string = urlencode(params)
         
         # return f"{settings.FRONTEND_URL}/verify-email/{token}"
-        return f"{settings.BACKEND_URL}/api/verify-email/?{query_string}"
+        if action == 'email-verification':
+            return f"{settings.BACKEND_URL}/api/verify-email/?{query_string}"
+        elif action == 'password-reset':
+            return f"{settings.BACKEND_URL}/api/reset-password/?{query_string}"
+        else:
+            raise ValueError("Invalid action.")
 
     @classmethod
     def verify_link(cls, token):
@@ -80,12 +85,27 @@ class EmailLink:
     @classmethod
     def send_email_link(cls, email):
         """Send the email with the verification link."""
-        link = cls._generate_link(email)
+        link = cls._generate_link(email, 'email-verification')
         
         try:
             email_message = EmailMessage(
                 subject="Verify Your Email",
-                body=f"Hi {email},\n\nPlease verify your email using the following link: {link}\nThis link will expire in 10 minutes.",
+                body=f"Hi {email},\n\nPlease verify your email using the following link: {link}\n\nThis link will expire in 10 minutes.",
+                to=[email]
+            )
+            email_message.send()
+            return True
+        except Exception as e:
+            return False
+        
+    @classmethod
+    def send_password_reset_link(cls, email):
+        link = cls._generate_link(email, 'password-reset')
+        
+        try:
+            email_message = EmailMessage(
+                subject="Reset Your Password",
+                body=f"Hi {email},\n\nPlease reset your password using the following link: {link}\n\nThis link will expire in 10 minutes.",
                 to=[email]
             )
             email_message.send()

@@ -26,13 +26,52 @@ from .serializers import (
     UserActionSerializer,
     UserFilterSerializer,
     LoginSerializer,
-    TokenRequestSerializer
+    TokenRequestSerializer,
+    PasswordResetSerializer,
+    PasswordResetRequestSerializer,
+    InputPasswordResetSerializer
 )
+
+
+def check_token_validity(request):
+    token = request.query_params.get('token')
+    expiry = request.query_params.get('expiry')
+    
+    if not token or not expiry:
+        return Response({"error": "Invalid or missing verification link."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    expiry_time = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expiry_time:
+        return Response({"error": "The verification link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        email = EmailLink.verify_link(token)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return email
+    
+def check_user_validity(email):
+    user = get_user_model().objects.filter(email=email).first()
+        
+    # Check if user exists
+    if not user:
+        return Response({"error": "User doesn't exist"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if user is active
+    if not user.is_active:
+        return Response({"error": "User is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if user is email verified
+    if not user.is_email_verified:
+        return Response({"error": "Email is not verified. You must verify your email first"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return user
 
 
 class LoginView(APIView):
     """Login to get an otp."""
-    
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -92,23 +131,14 @@ class LoginView(APIView):
         if not email or not password:
             return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        user = get_user_model().objects.filter(email=email).first()
+        user = check_user_validity(email)
         
-        # Check if user exists
-        if not user:
-            return Response({"error": "User does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        if isinstance(user, Response):
+            return user
         
         # Check if password is correct
         if not user.check_password(password):
             return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check if user is active
-        if not user.is_active:
-            return Response({"error": "User is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Check if user is email verified
-        if not user.is_email_verified:
-            return Response({"error": "Email is not verified. Verify your email before logging in"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Generate OTP
         response = self._generate_otp(request)
@@ -135,7 +165,6 @@ class LoginView(APIView):
        
 class TokenView(TokenObtainPairView):
     """Generate token after OTP verification."""
-    
     renderer_classes = [ViewRenderer]
 
     @extend_schema(
@@ -269,30 +298,189 @@ class EmailVerifyView(APIView):
     )
     def get(self, request, *args, **kwargs):
         """Email Link Verification"""
-        token = request.query_params.get('token')
-        expiry = request.query_params.get('expiry')
+        email = check_token_validity(request)
+
+        if isinstance(email, Response):
+            return email
         
-        if not token or not expiry:
-            return Response({"error": "Invalid or missing verification link."}, status=status.HTTP_400_BAD_REQUEST)
+        user = check_user_validity(email)
         
-        expiry_time = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
-        
-        if datetime.now(timezone.utc) > expiry_time:
-            return Response({"error": "The verification link has expired."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            email = EmailLink.verify_link(token)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = get_user_model().objects.filter(email=email).first()
-        if not user:
-            return Response({"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
+        if isinstance(user, Response):
+            return user
         
         user.is_email_verified = True
         user.save()
         
         return Response({"success": "Email verified successfully"}, status=status.HTTP_200_OK)
+    
+class PasswordResetView(APIView):
+    """View for resetting user's password."""
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [ViewRenderer]
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = []
+        for throttle in self.get_throttles():
+            if not throttle.allow_request(request, self):
+                throttle_durations.append(throttle.wait())
+                
+        cached_email = cache.get(f"email_{request.data.get('email')}")
+
+        if throttle_durations and cached_email and request.method == "POST":
+            # Filter out `None` values which may happen in case of config / rate
+            # changes, see #1438
+            durations = [
+                duration for duration in throttle_durations
+                if duration is not None
+            ]
+
+            duration = max(durations, default=None)
+            self.throttled(request, duration)
+    
+    @extend_schema(
+        operation_id="password_reset_verify_link",
+        description="Verify the token and expiry provided in the query parameters to validate the password reset link.",
+        parameters=[
+            OpenApiParameter(
+                name="token",
+                description="The unique token for password reset verification.",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="expiry",
+                description="The expiry timestamp for the password reset link.",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Password reset link verified successfully.",
+                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password verification link ok"}}},
+            ),
+            400: OpenApiResponse(
+                description="Invalid or expired password reset link.",
+                response={"type": "object", "properties": {"error": {"type": "string", "example": "The verification link has expired."}}},
+            ),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """Email Link Verification"""
+        email = check_token_validity(request)
+        
+        if isinstance(email, Response):
+            return email
+        
+        return Response({"success": "Password verification link ok"}, status=status.HTTP_200_OK)
+    
+    @extend_schema(
+        operation_id="password_reset_request",
+        description="Send a password reset link to the user's email address if it is verified and active.",
+        request=PasswordResetRequestSerializer,
+        responses={
+            201: OpenApiResponse(
+                description="Password reset link sent successfully.",
+                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password reset link sent. Please check your email to reset your password."}}},
+            ),
+            400: OpenApiResponse(
+                description="User not found or email not verified.",
+                response={"type": "object", "properties": {"error": {"type": "string", "example": "User doesn't exist"}}},
+            ),
+            500: OpenApiResponse(
+                description="Failed to send password reset link.",
+                response={"type": "object", "properties": {"error": {"type": "string", "example": "Failed to send password reset link."}}},
+            ),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """Password Reset"""
+        email = request.data.get('email')
+        
+        user = check_user_validity(email)
+        
+        if isinstance(user, Response):
+            return user
+        
+        email_sent = EmailLink.send_password_reset_link(user.email)
+        
+        if not email_sent:
+            return Response(
+                {"error": "Failed to send password reset link."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        cache.set(f"email_{user.email}", user.email, timeout=60) # Cache email for 10 minutes
+        
+        return Response(
+            {"success": "Password reset link sent. Please check your email to reset your password."},
+            status=status.HTTP_201_CREATED
+        )
+    
+    @extend_schema(
+        operation_id="password_reset",
+        description="Reset the user's password using the provided token, expiry, and new password. Both passwords must match.",
+        parameters=[
+            OpenApiParameter(
+                name="token",
+                description="The unique token for password reset verification.",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="expiry",
+                description="The expiry timestamp for the password reset link.",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        request=InputPasswordResetSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Password reset successful.",
+                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password reset successful"}}},
+            ),
+            400: OpenApiResponse(
+                description="Invalid or mismatched passwords, or user not valid.",
+                response={"type": "object", "properties": {"error": {"type": "string", "example": "Passwords do not match"}}},
+            ),
+        },
+    )  
+    def patch(self, request, *args, **kwargs):
+        """Password Reset"""
+        email = check_token_validity(request)
+
+        if isinstance(email, Response):
+            return email
+        
+        user = check_user_validity(email)
+        
+        if isinstance(user, Response):
+            return user
+        
+        password = request.data.get('password')
+        c_password = request.data.get('c_password')
+        
+        if password != c_password:
+            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # password reset serializer
+        serializer = PasswordResetSerializer(instance=user, data={"password": password})
+        
+        if not serializer.is_valid():
+            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer.save()
+        
+        return Response({"success": "Password reset successful."}, status=status.HTTP_200_OK)
         
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
@@ -362,8 +550,11 @@ class UserViewSet(ModelViewSet):
             
         response = super().create(request, *args, **kwargs)
         
+        if response.status_code != status.HTTP_201_CREATED:
+            return response
+        
         # Send email verification link
-        user = get_user_model().objects.get(email=request.data['email'])
+        user = get_user_model().objects.get(email=response.data["email"])
         email_sent = EmailLink.send_email_link(user.email)
         
         if not email_sent:
@@ -372,7 +563,7 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        cache.set(f"email_{user.email}", user.email, timeout=600) # Cache email for 10 minutes
+        cache.set(f"email_{user.email}", user.email, timeout=60) # Cache email for 10 minutes
         
         return Response(
             {"success": "User created successfully. Please verify your email to activate your account."},
@@ -438,7 +629,6 @@ class UserViewSet(ModelViewSet):
 
         # Check and delete the profile image if it's not the default image
         default_image_path = 'profile_images/default_profile.jpg'
-        print(user_to_delete)
         if user_to_delete.profile_img and user_to_delete.profile_img.name != default_image_path:
             user_to_delete.profile_img.delete(save=False)
 

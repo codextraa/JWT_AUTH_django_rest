@@ -3,12 +3,79 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 
+def validate_password(password):
+    """Password Validation"""
+    errors = {}
+    
+    if len(password) < 8:
+        errors['short'] = 'Password must be at least 8 characters long.'
+        
+    if not re.search(r"[a-z]", password):
+        errors['lower'] = 'Password must contain at least one lowercase letter.'
+        
+    if not re.search(r"[A-Z]", password):
+        errors['upper'] = 'Password must contain at least one uppercase letter.'
+        
+    if not re.search(r"[0-9]", password):
+        errors['number'] = 'Password must contain at least one number.'
+        
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        errors['special'] = 'Password must contain at least one special character.'
+        
+    if errors:
+        raise serializers.ValidationError(errors)
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
 class TokenRequestSerializer(serializers.Serializer):
     otp = serializers.CharField(required=True)
+    
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    
+class InputPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(required=True)
+    c_password = serializers.CharField(required=True)
+    
+class PasswordResetSerializer(serializers.ModelSerializer):
+    """Password Reset Serializer"""
+    
+    class Meta:
+        model = get_user_model()
+        fields = ('id', 'password')
+        read_only_fields = ('id',)
+        extra_kwargs = {
+            'password': {
+                'write_only': True,
+                'style': {'input_type': 'password'} 
+            }
+        }
+        
+    def validate(self, attrs):
+        """Validate all data"""
+        password = attrs.get('password')
+        if password:
+            validate_password(password)
+            
+        return super().validate(attrs)
+        
+    def update(self, instance, validated_data):
+        """Update and return an existing user"""
+        password = validated_data.pop("password", None)
+        
+        if not password:
+            raise serializers.ValidationError("Password is required.")
+        
+        if instance.check_password(password):
+            raise serializers.ValidationError("New password cannot be the same as the old password.")
+        
+        validate_password(password)
+        instance.set_password(password)
+        instance.save()
+
+        return instance
 
 class UserFilterSerializer(django_filters.FilterSet):
     """User Filter"""
@@ -71,28 +138,6 @@ class UserSerializer(serializers.ModelSerializer):
         if errors:
             raise serializers.ValidationError(errors)
         
-    def _validate_password(self, password):
-        """Password Validation"""
-        errors = {}
-        
-        if len(password) < 8:
-            errors['short'] = 'Password must be at least 8 characters long.'
-            
-        if not re.search(r"[a-z]", password):
-            errors['lower'] = 'Password must contain at least one lowercase letter.'
-            
-        if not re.search(r"[A-Z]", password):
-            errors['upper'] = 'Password must contain at least one uppercase letter.'
-            
-        if not re.search(r"[0-9]", password):
-            errors['number'] = 'Password must contain at least one number.'
-            
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
-            errors['special'] = 'Password must contain at least one special character.'
-            
-        if errors:
-            raise serializers.ValidationError(errors)
-        
     def validate(self, attrs):
         """Validate all data"""
         
@@ -106,7 +151,7 @@ class UserSerializer(serializers.ModelSerializer):
         
         password = attrs.get('password')
         if password:
-            self._validate_password(password)
+            validate_password(password)
         
         attrs = super().validate(attrs)
         
@@ -127,18 +172,6 @@ class UserSerializer(serializers.ModelSerializer):
             validated_data['profile_img'] = default_image_path
 
         return get_user_model().objects.create_user(**validated_data)
-
-    def update(self, instance, validated_data):
-        """Update and return an existing user"""
-        password = validated_data.pop("password", None)
-        instance = super().update(instance, validated_data)
-
-        if password:
-            self._validate_password(password)
-            instance.set_password(password)
-            instance.save()
-
-        return instance
     
 class UserImageSerializer(serializers.ModelSerializer):
     class Meta:
