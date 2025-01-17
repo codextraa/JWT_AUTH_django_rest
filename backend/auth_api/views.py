@@ -1,26 +1,211 @@
 """Views for Auth API."""
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from .renderers import (
-    UserRenderer
-)
+from django.core.cache import cache
+from .renderers import UserRenderer
+from .utils import EmailOtp
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
     UserListSerializer,
     UserActionSerializer,
-    UserFilterSerializer
+    UserFilterSerializer,
+    LoginSerializer,
+    TokenRequestSerializer
 )
 
 
+class LoginView(APIView):
+    """Login to get an otp."""
+    
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp'
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = []
+        for throttle in self.get_throttles():
+            if not throttle.allow_request(request, self):
+                throttle_durations.append(throttle.wait())
+                
+        cached_email = cache.get(f"email_{request.data.get('email')}")
+
+        if throttle_durations and cached_email:
+            # Filter out `None` values which may happen in case of config / rate
+            # changes, see #1438
+            durations = [
+                duration for duration in throttle_durations
+                if duration is not None
+            ]
+
+            duration = max(durations, default=None)
+            self.throttled(request, duration)
+
+    @extend_schema(
+        request=LoginSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Email sent",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "Email sent"}
+                    }
+                }
+            ),
+            400: OpenApiResponse(
+                description="Error response",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {"type": "string", "example": "Invalid credentials"}
+                    }
+                }
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        # Get email and password
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        if not email or not password:
+            return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = get_user_model().objects.filter(email=email).first()
+        
+        # Check if user exists
+        if not user:
+            return Response({"error": "User does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if password is correct
+        if not user.check_password(password):
+            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user is active
+        if not user.is_active:
+            return Response({"error": "User is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user is email verified
+        if not user.is_email_verified:
+            return Response({"error": "Email is not verified. Verify your email before logging in"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Generate OTP
+        cache.set(f"email_{email}", email, timeout=60) # Cache email for 1 minute (used for email verification)
+        print('Email cached')
+        response = self._generate_otp(request)
+        
+        return response
+    
+    def _generate_otp(self, request):
+        """Generate OTP and send email."""
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        # Generate OTP
+        otp = EmailOtp.generate_otp()
+        otp_email = EmailOtp.send_email_otp(email, otp)
+        
+        # Check if the email was sent
+        if otp_email:
+            cache.set(f"email_{otp}", email, timeout=600) # Cache email for 10 minutes (used for otp verification)
+            cache.set(f"password_{otp}", password, timeout=600)  # Store password in cache for verification
+            return Response({"success": "Email sent", "otp": True}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Something went wrong, could not send OTP. Try again", "otp": False}, status=status.HTTP_400_BAD_REQUEST)
+       
+class TokenView(TokenObtainPairView):
+    """Generate token after OTP verification."""
+
+    @extend_schema(
+        request=TokenRequestSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Token response",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "access": {"type": "string", "example": "JWT access token"},
+                        "refresh": {"type": "string", "example": "JWT refresh token"},
+                        "user_role": {"type": "string", "example": "Admin"},
+                        "user_id": {"type": "integer", "example": 1},
+                    }
+                }
+            ),
+            400: OpenApiResponse(
+                description="Error response",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {"type": "string", "example": "Invalid OTP"}
+                    }
+                }
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        # Get OTP from the request
+        otp_from_request = request.data.pop("otp", None)
+        
+        if not otp_from_request:
+            return Response({"error": "OTP is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify OTP
+        otp_verify = EmailOtp.verify_otp(otp_from_request)
+        
+        if not otp_verify:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get email and password from the cache
+        email = cache.get(f"email_{otp_from_request}")
+        password = cache.get(f"password_{otp_from_request}")
+
+        if not email or not password:
+            return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set email and password in the request
+        request.data['email'] = email
+        request.data['password'] = password
+        
+        # Generate token
+        response = super().post(request, *args, **kwargs)
+        
+        cache.delete(f"email_{otp_from_request}")
+        cache.delete(f"password_{otp_from_request}")
+        
+        # Get user role and id
+        user = get_user_model().objects.get(email=email)
+        user_groups = user.groups.all()
+        
+        if user_groups.filter(name='Default').exists():
+            user_role = 'Default'
+        elif user_groups.filter(name='Admin').exists():
+            user_role = 'Admin'
+        elif user_groups.filter(name='Superuser').exists():
+            user_role = 'Superuser'
+        else:
+            user_role = 'UnAuthorized'
+        
+        response.data['user_role'] = user_role
+        response.data['user_id'] = user.id
+
+        return response
+        
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
     queryset = get_user_model().objects.all() # get all the users

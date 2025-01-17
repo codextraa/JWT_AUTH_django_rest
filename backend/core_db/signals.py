@@ -22,7 +22,10 @@ def save_user_slug(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def set_user_default_group(sender, instance, created, **kwargs):
     if created and instance.pk:
-        if instance.is_staff:
+        if instance.is_superuser:
+            admin_group, _ = Group.objects.get_or_create(name="Superuser")
+            instance.groups.add(admin_group)
+        elif instance.is_staff:
             admin_group, _ = Group.objects.get_or_create(name="Admin")
             instance.groups.add(admin_group)
         else:

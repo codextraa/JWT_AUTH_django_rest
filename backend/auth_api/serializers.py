@@ -3,6 +3,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+class TokenRequestSerializer(serializers.Serializer):
+    otp = serializers.CharField(required=True)
+
 class UserFilterSerializer(django_filters.FilterSet):
     """User Filter"""
     email = django_filters.CharFilter(lookup_expr='icontains')

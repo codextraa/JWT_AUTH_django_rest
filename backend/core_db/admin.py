@@ -19,7 +19,8 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('first_name', 'last_name', 'phone_number', 'profile_img')
         }),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'groups', 'user_permissions')
+            'fields': ('is_active', 'is_staff', 'is_email_verified', 
+                       'is_phone_verified', 'groups', 'user_permissions')
         }),
         ('Important dates', {
             'fields': ('last_login',)
@@ -31,7 +32,8 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'username', 'slug', 'password1', 'password2', 'is_active', 'is_staff')
+            'fields': ('email', 'username', 'slug', 'password1', 'password2', 
+                       'is_active', 'is_staff', 'is_email_verified', 'is_phone_verified',)
         }),
     )
 

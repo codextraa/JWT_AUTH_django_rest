@@ -37,6 +37,7 @@ class UserManager(BaseUserManager):
         if not password:
             raise ValueError("SuperUser must have a password")
         
+        extra_fields.setdefault("is_email_verified", True)
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -60,6 +61,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     profile_img = models.ImageField(upload_to="profile_images/", blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
     slug = models.SlugField(unique=True, blank=True, null=True)
 
     objects = UserManager()
