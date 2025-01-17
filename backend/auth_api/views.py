@@ -1,4 +1,5 @@
 """Views for Auth API."""
+from datetime import datetime, timezone
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
@@ -9,12 +10,15 @@ from rest_framework.decorators import action
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
-from .renderers import UserRenderer
-from .utils import EmailOtp
+from .renderers import ViewRenderer
+from .utils import (
+    EmailOtp,
+    EmailLink
+)
 from .serializers import (
     UserSerializer,
     UserImageSerializer,
@@ -30,6 +34,7 @@ class LoginView(APIView):
     """Login to get an otp."""
     
     permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'otp'
     
@@ -106,8 +111,6 @@ class LoginView(APIView):
             return Response({"error": "Email is not verified. Verify your email before logging in"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Generate OTP
-        cache.set(f"email_{email}", email, timeout=60) # Cache email for 1 minute (used for email verification)
-        print('Email cached')
         response = self._generate_otp(request)
         
         return response
@@ -123,6 +126,7 @@ class LoginView(APIView):
         
         # Check if the email was sent
         if otp_email:
+            cache.set(f"email_{email}", email, timeout=60) # Cache email for 1 minute (used for email verification)
             cache.set(f"email_{otp}", email, timeout=600) # Cache email for 10 minutes (used for otp verification)
             cache.set(f"password_{otp}", password, timeout=600)  # Store password in cache for verification
             return Response({"success": "Email sent", "otp": True}, status=status.HTTP_200_OK)
@@ -131,6 +135,8 @@ class LoginView(APIView):
        
 class TokenView(TokenObtainPairView):
     """Generate token after OTP verification."""
+    
+    renderer_classes = [ViewRenderer]
 
     @extend_schema(
         request=TokenRequestSerializer,
@@ -205,13 +211,97 @@ class TokenView(TokenObtainPairView):
         response.data['user_id'] = user.id
 
         return response
+    
+class EmailVerifyView(APIView):
+    """View for verifying user's email address after registration."""
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+    
+    @extend_schema(
+        description="This endpoint verifies the user's email address using a token and expiry time sent during registration.",
+        parameters=[
+            OpenApiParameter(
+                name="token",
+                description="The unique token for email verification, sent to the user's email.",
+                required=True,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="expiry",
+                description="The expiry timestamp for the verification link (in seconds since the epoch).",
+                required=True,
+                type=int,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Email verification successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "string",
+                            "example": "Email verified successfully",
+                        }
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid or expired token or user not found",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "examples": [
+                                "Invalid or missing verification link.",
+                                "The verification link has expired.",
+                                "Invalid token",
+                                "User not found",
+                            ],
+                        }
+                    },
+                },
+            ),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """Email Link Verification"""
+        token = request.query_params.get('token')
+        expiry = request.query_params.get('expiry')
+        
+        if not token or not expiry:
+            return Response({"error": "Invalid or missing verification link."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        expiry_time = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
+        
+        if datetime.now(timezone.utc) > expiry_time:
+            return Response({"error": "The verification link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            email = EmailLink.verify_link(token)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = get_user_model().objects.filter(email=email).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.is_email_verified = True
+        user.save()
+        
+        return Response({"success": "Email verified successfully"}, status=status.HTTP_200_OK)
         
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
     queryset = get_user_model().objects.all() # get all the users
     serializer_class = UserSerializer # User Serializer initialized
     authentication_classes = [JWTAuthentication] # Using jwtoken
-    renderer_classes = [UserRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'user_view'
+    renderer_classes = [ViewRenderer]
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilterSerializer
 
@@ -235,15 +325,81 @@ class UserViewSet(ModelViewSet):
         if self.action == "upload_image": # Image handled with different serializer
             return UserImageSerializer
         return super().get_serializer_class()
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = []
+        for throttle in self.get_throttles():
+            if not throttle.allow_request(request, self):
+                throttle_durations.append(throttle.wait())
+                
+        cached_email = cache.get(f"email_{request.data.get('email')}")
+
+        if throttle_durations and cached_email and request.method == "POST":
+            # Filter out `None` values which may happen in case of config / rate
+            # changes, see #1438
+            durations = [
+                duration for duration in throttle_durations
+                if duration is not None
+            ]
+
+            duration = max(durations, default=None)
+            self.throttled(request, duration)
+    
+    def create(self, request, *args, **kwargs):
+        """Create new user and send email verification link."""
+        current_user = self.request.user
+        
+        if (('is_staff' in request.data or 'is_superuser' in request.data)
+            and not current_user.is_superuser):
+            return Response(
+                {"error": "You do not have permission to create an admin user."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+            
+        response = super().create(request, *args, **kwargs)
+        
+        # Send email verification link
+        user = get_user_model().objects.get(email=request.data['email'])
+        email_sent = EmailLink.send_email_link(user.email)
+        
+        if not email_sent:
+            return Response(
+                {"error": "Failed to send email verification link."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        cache.set(f"email_{user.email}", user.email, timeout=600) # Cache email for 10 minutes
+        
+        return Response(
+            {"success": "User created successfully. Please verify your email to activate your account."},
+            status=status.HTTP_201_CREATED
+        )
+        
 
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile."""
         current_user = self.request.user
         print(request.data)
         user = self.get_object()
+        
+        if 'email' in request.data:
+            return Response(
+                {"error": "You cannot update the email field."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if 'password' in request.data:
+            return Response(
+                {"error": "Password reset cannot be done without verification link."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        if ('is_active' in request.data or 'is_staff' in request.data or 
-            'is_superuser' in request.data):
+        if ('is_active' in request.data or 'is_staff' in request.data 
+            or 'is_superuser' in request.data):
             return Response(
                 {"error": "You cannot update the is_active, is_staff or is_superuser field."},
                 status=status.HTTP_403_FORBIDDEN
@@ -265,6 +421,12 @@ class UserViewSet(ModelViewSet):
         if not current_user.is_superuser:
             return Response(
                 {"error": "Only superusers can delete users."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+            
+        if user_to_delete.is_active:
+            return Response(
+                {"error": "You must deactivate the user before deleting it."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

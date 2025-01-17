@@ -34,6 +34,10 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 PRIVATE_KEY = open(os.path.join(BASE_DIR, "private_key.pem")).read()
 PUBLIC_KEY = open(os.path.join(BASE_DIR, "public_key.pem")).read()
 
+# URLS
+BACKEND_URL = os.getenv("BACKEND_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", 'False') == 'True'
 
@@ -174,6 +178,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_THROTTLE_RATES': {
         'otp': '1/min',
+        'user_view': '1/min',
     },
 }
 

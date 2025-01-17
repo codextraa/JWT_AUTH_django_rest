@@ -1,6 +1,6 @@
 from rest_framework.renderers import JSONRenderer
 
-class UserRenderer(JSONRenderer):
+class ViewRenderer(JSONRenderer):
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
         response = renderer_context.get("response", None)
@@ -9,7 +9,7 @@ class UserRenderer(JSONRenderer):
         if response is not None and (
             response.status_code < 400 and 
             accepted_media_type and "image" in accepted_media_type
-):
+        ):
             return data
 
         if response is not None and response.status_code >= 400:
