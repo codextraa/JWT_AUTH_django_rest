@@ -17,6 +17,7 @@ router.register(r'users', views.UserViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('login/', views.LoginView.as_view(), name='login'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
     path('verify-email/', views.EmailVerifyView.as_view(), name='email-verify'),
     path('reset-password/', views.PasswordResetView.as_view(), name='password-reset'),
     path('token/', views.TokenView.as_view(), name='token'),

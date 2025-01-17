@@ -28,6 +28,9 @@ def validate_password(password):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
+    
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True)
 
 class TokenRequestSerializer(serializers.Serializer):
     otp = serializers.CharField(required=True)
