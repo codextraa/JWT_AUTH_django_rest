@@ -35,8 +35,14 @@ PRIVATE_KEY = open(os.path.join(BASE_DIR, "private_key.pem")).read()
 PUBLIC_KEY = open(os.path.join(BASE_DIR, "public_key.pem")).read()
 
 # URLS
-BACKEND_URL = os.getenv("BACKEND_URL")
-FRONTEND_URL = os.getenv("FRONTEND_URL")
+HTTPS = os.getenv("HTTPS")
+
+if HTTPS == "True":
+    BACKEND_URL = os.getenv("HTTPS_BACKEND_URL")
+    FRONTEND_URL = os.getenv("HTTPS_FRONTEND_URL")
+else:
+    BACKEND_URL = os.getenv("BACKEND_URL")
+    FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", 'False') == 'True'
@@ -236,7 +242,7 @@ REST_FRAMEWORK = {
 REST_USE_JWT = True
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     
      # Set the RS256 algorithm
@@ -291,6 +297,9 @@ CORS_ALLOWED_ORIGINS = [
     "https://localhost:3000",
     "https://127.0.0.1:3000",
     "https://192.168.56.1:3000",
+    "https://localhost:443",
+    "https://127.0.0.1:443",
+    "https://192.168.56.1:443",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -300,8 +309,15 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",  
     "http://127.0.0.1:3000",
+    "http://192.168.56.1:3000",
     "https://localhost:3000",  
+    "https://localhost:443",
     "https://127.0.0.1:3000",
+    "https://127.0.0.1:443",
+    "https://192.168.56.1:3000",
+    "https://localhost:443",
+    "https://127.0.0.1:443",
+    "https://192.168.56.1:443",
 ]
 
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS

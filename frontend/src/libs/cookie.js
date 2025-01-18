@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers';
-import { encrypt, decrypt } from '@/app/lib/session';
-import { validateSessionData } from '@/app/lib/session'; // Custom validation logic
+import { encrypt, decrypt, validateSessionData } from './session';
 import { BASE_ROUTE } from '@/route';
 
 export const setSessionCookie = async (data) => {
@@ -19,7 +18,7 @@ export const setSessionCookie = async (data) => {
     const cookieStore = await cookies();
     cookieStore.set('session', encryptedSessionData, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Secure in production
+      secure: process.env.HTTPS, // Secure in production
       maxAge: 60 * 60 * 24, // One day in seconds
       path: BASE_ROUTE, // Dynamic path
       sameSite: 'lax', // Helps prevent CSRF attacks
@@ -102,5 +101,8 @@ export const getRefreshTokenFromSession = async () =>  {
 
 export const deleteSessionCookie = async () => {
   const cookieStore = await cookies();
-  cookieStore.delete('session'); // Delete the session cookie
+
+  if (cookieStore.has('session')) {
+    cookieStore.delete('session');
+  };
 };

@@ -64,9 +64,9 @@ class EmailLink:
         
         # return f"{settings.FRONTEND_URL}/verify-email/{token}"
         if action == 'email-verification':
-            return f"{settings.BACKEND_URL}/api/verify-email/?{query_string}"
+            return f"{settings.BACKEND_URL}/verify-email/?{query_string}"
         elif action == 'password-reset':
-            return f"{settings.BACKEND_URL}/api/reset-password/?{query_string}"
+            return f"{settings.BACKEND_URL}/reset-password/?{query_string}"
         else:
             raise ValueError("Invalid action.")
 

@@ -63,7 +63,7 @@ def check_user_validity(email):
         
     # Check if user exists
     if not user:
-        return Response({"error": "User doesn't exist"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is active
     if not user.is_active:
@@ -159,7 +159,7 @@ class LoginView(APIView):
         
         # Check if password is correct
         if not user.check_password(password):
-            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Generate OTP
         response = self._generate_otp(request)
@@ -833,7 +833,7 @@ class LogoutView(APIView):
             token.blacklist()
 
             # Blacklist access token
-            cache.set(f"blacklisted_access_token_{access_token}", True, timeout=3600)  # Expires in 1 hour
+            cache.set(f"blacklisted_access_token_{access_token}", True, timeout=600)  # Expires in 10 minutes
 
             return Response({"success": "Logged out successfully"}, status=status.HTTP_200_OK)
         except Exception as e:

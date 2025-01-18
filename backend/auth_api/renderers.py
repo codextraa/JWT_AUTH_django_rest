@@ -15,6 +15,8 @@ class ViewRenderer(JSONRenderer):
         if response is not None and response.status_code >= 400:
             if "error" in data:
                 data = {"errors": data["error"]}
+            if "detail" in data:
+                data = {"errors": data["detail"]}
             if "errors" not in data:
                 data = {"errors": data}
             

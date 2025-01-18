@@ -35,6 +35,7 @@ export async function middleware(req) {
   // Check if it's a public route
   const isPublicRoute = publicRoutes.includes(pathname);
   if (isPublicRoute) {
+    console.log('Handling public route');
     return NextResponse.next(); // Allow access to public routes
   };
 
@@ -59,6 +60,6 @@ export const config = {
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
-    `${BASE_ROUTE}/(.*)`,
+    '/',
   ],
 };
