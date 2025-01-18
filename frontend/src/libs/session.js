@@ -22,24 +22,24 @@ export function validateSessionData(data) {
   };
   data.user_role = data.user_role.trim();
 
-  // Validate access (should be a non-empty string)
-  if (typeof data.access !== 'string' || data.access.trim() === '') {
+  // Validate access_token (should be a non-empty string)
+  if (typeof data.access_token !== 'string' || data.access_token.trim() === '') {
     return null;
   };
-  data.access = data.access.trim();
+  data.access_token = data.access_token.trim();
 
-  // Validate refresh (should be a non-empty string)
-  if (typeof data.refresh !== 'string' || data.refresh.trim() === '') {
+  // Validate refresh_token (should be a non-empty string)
+  if (typeof data.refresh_token !== 'string' || data.refresh_token.trim() === '') {
     return null;
   };
-  data.refresh = data.refresh.trim();
+  data.refresh_token = data.refresh_token.trim();
 
   // Return sanitized and valid data
   return {
     user_id: data.user_id,
     user_role: data.user_role,
-    access_token: data.access,
-    refresh_token: data.refresh,
+    access_token_token: data.access_token,
+    refresh_token_token: data.refresh_token,
   };
 };
 

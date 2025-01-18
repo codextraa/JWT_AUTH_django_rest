@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAccessTokenFromSession } from "@/libs/cookie";
 import {
   BASE_ROUTE,
   DEFAULT_LOGIN_REDIRECT,
@@ -11,7 +12,7 @@ export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
 
-  const accessToken = req.cookies.get('accessToken')?.value;
+  const accessToken = await getAccessTokenFromSession();
 
   // Check if it's an auth route (login, register)
   const isAuthRoute = authRoutes.includes(pathname);
