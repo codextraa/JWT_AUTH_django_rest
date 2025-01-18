@@ -1,0 +1,63 @@
+import { NextResponse } from "next/server";
+import {
+  BASE_ROUTE,
+  DEFAULT_LOGIN_REDIRECT,
+  publicRoutes,
+  authRoutes,
+} from "./route";
+
+
+export async function middleware(req) {
+  console.log("Middleware triggered");
+  const { pathname } = req.nextUrl;
+
+  const accessToken = req.cookies.get('accessToken')?.value;
+
+  // Check if it's an auth route (login, register)
+  const isAuthRoute = authRoutes.includes(pathname);
+  const isLoggedIn = accessToken;
+
+  if (isAuthRoute) {
+    console.log('Handling auth route');
+    if (isLoggedIn) {
+      console.log('User is logged in, redirecting to /');
+      // Avoid redirect loop if already at the login page
+      if (pathname === DEFAULT_LOGIN_REDIRECT) {
+        console.log('Skipping middleware for DEFAULT_LOGIN_REDIRECT');
+        return NextResponse.next();
+      }
+      return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, req.url)); // Redirect to homepage or dashboard
+    }
+    return NextResponse.next(); // Allow access to login/register if not logged in
+  };
+
+  // Check if it's a public route
+  const isPublicRoute = publicRoutes.includes(pathname);
+  if (isPublicRoute) {
+    return NextResponse.next(); // Allow access to public routes
+  };
+
+  // Redirect unauthenticated users from protected routes to the login page
+  if (!isLoggedIn) {
+    console.log(`User is not logged in, redirecting to ${BASE_ROUTE}/login`);
+    // Prevent redirect loop if already at the login page
+    if (pathname === `${BASE_ROUTE}/login`) {
+      console.log(`Skipping middleware for ${BASE_ROUTE}/login`);
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL(`${BASE_ROUTE}/login`, req.url)); // Redirect to login page
+  };
+
+  // If everything is fine, allow the request to continue
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
+    `${BASE_ROUTE}/(.*)`,
+  ],
+};

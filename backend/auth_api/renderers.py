@@ -20,7 +20,4 @@ class ViewRenderer(JSONRenderer):
             
             data["status_code"] = response.status_code
 
-        else:
-            data = {"data": data}
-
         return super().render(data, accepted_media_type, renderer_context)
