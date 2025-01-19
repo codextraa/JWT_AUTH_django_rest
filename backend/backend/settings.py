@@ -92,7 +92,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'backend.middleware.blacklist_middleware.BlacklistAccessTokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

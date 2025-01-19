@@ -1,8 +1,6 @@
-import crypto from 'crypto';
-
-
-const SECRET_KEY = process.env.AUTH_SECRET_KEY;
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = 'AES-GCM';
+const SECRET_KEY = typeof window !== 'undefined' ? 
+      process.env.NEXT_PUBLIC_AUTH_SECRET_KEY : process.env.AUTH_SECRET_KEY;
 
 export function validateSessionData(data) {
   // Check that the data is an object
@@ -44,43 +42,87 @@ export function validateSessionData(data) {
 };
 
 /**
- * Encrypts the session data
+ * Encrypts the session data using Web Crypto API
  * @param {Object} data - The session data to encrypt
- * @returns {string} - Encrypted data in base64 format
+ * @returns {Promise<string>} - Encrypted data in base64 format
  */
-export function encrypt(data) {
-  const iv = crypto.randomBytes(16); // 16 bytes IV for AES-GCM
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(SECRET_KEY), iv);
+export async function encrypt(data) {
+  if (!SECRET_KEY || SECRET_KEY.length !== 64) {
+    console.log('SECRET_KEY:', SECRET_KEY, 'Length:', SECRET_KEY?.length);
+    throw new Error('Invalid SECRET_KEY. Ensure it is a 64-character hex string.');
+  }
 
-  const jsonData = JSON.stringify(data);
-  let encrypted = cipher.update(jsonData, 'utf8', 'base64');
-  encrypted += cipher.final('base64');
+  // Convert SECRET_KEY to ArrayBuffer
+  const keyBuffer = Uint8Array.from(Buffer.from(SECRET_KEY, 'hex'));
 
-  const authTag = cipher.getAuthTag(); // Get authentication tag
+  // Generate a random IV
+  const iv = crypto.getRandomValues(new Uint8Array(12)); // 12 bytes IV for AES-GCM (recommended)
 
-  return `${iv.toString('base64')}.${encrypted}.${authTag.toString('base64')}`;
+  // Import the encryption key
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: ALGORITHM },
+    false,
+    ['encrypt']
+  );
+
+  // Encode the data into a byte array
+  const jsonData = new TextEncoder().encode(JSON.stringify(data));
+
+  // Encrypt the data
+  const encryptedBuffer = await crypto.subtle.encrypt(
+    { name: ALGORITHM, iv },
+    cryptoKey,
+    jsonData
+  );
+
+  // Combine IV and encrypted data
+  const encryptedData = Buffer.concat([Buffer.from(iv), Buffer.from(encryptedBuffer)]);
+
+  // Return as base64 string
+  return encryptedData.toString('base64');
 };
 
 /**
- * Decrypts the encrypted session data
+ * Decrypts the encrypted session data using Web Crypto API
  * @param {string} encryptedData - The encrypted data in base64 format
- * @returns {Object} - The decrypted session data
+ * @returns {Promise<Object>} - The decrypted session data
  */
-export function decrypt(encryptedData) {
-  const [ivBase64, encryptedBase64, authTagBase64] = encryptedData.split('.');
-  if (!ivBase64 || !encryptedBase64 || !authTagBase64) {
-    throw new Error('Invalid encrypted data format');
-  };
+export async function decrypt(encryptedData) {
+  if (!SECRET_KEY || SECRET_KEY.length !== 64) {
+    throw new Error('Invalid SECRET_KEY. Ensure it is a 64-character hex string.');
+  }
 
-  const iv = Buffer.from(ivBase64, 'base64');
-  const encrypted = Buffer.from(encryptedBase64, 'base64');
-  const authTag = Buffer.from(authTagBase64, 'base64');
+  // Convert SECRET_KEY to ArrayBuffer
+  const keyBuffer = Uint8Array.from(Buffer.from(SECRET_KEY, 'hex'));
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(SECRET_KEY), iv);
-  decipher.setAuthTag(authTag);
+  // Decode base64 encrypted data
+  const encryptedBuffer = Buffer.from(encryptedData, 'base64');
 
-  let decrypted = decipher.update(encrypted, 'base64', 'utf8');
-  decrypted += decipher.final('utf8');
+  // Extract IV (first 12 bytes) and actual encrypted data
+  const iv = encryptedBuffer.subarray(0, 12);
+  const dataBuffer = encryptedBuffer.subarray(12);
 
-  return JSON.parse(decrypted);
+  // Import the decryption key
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: ALGORITHM },
+    false,
+    ['decrypt']
+  );
+
+  // Decrypt the data
+  const decryptedBuffer = await crypto.subtle.decrypt(
+    { name: ALGORITHM, iv },
+    cryptoKey,
+    dataBuffer
+  );
+
+  // Decode the decrypted data
+  const decryptedText = new TextDecoder().decode(decryptedBuffer);
+
+  // Parse JSON and return
+  return JSON.parse(decryptedText);
 };

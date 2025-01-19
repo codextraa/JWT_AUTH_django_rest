@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { verifyOtpAction } from '@/actions/authActions';
+import { verifyOtpAction, resendOtpAction } from '@/actions/authActions';
 import { OtpVerifyButton, ResendOtpButton } from '@/components/Button';
 import { BASE_ROUTE, DEFAULT_LOGIN_REDIRECT } from '@/route';
+import { decrypt } from '@/libs/session';
 import styles from './page.module.css';
 
 export default function OtpPage() {
@@ -13,6 +14,7 @@ export default function OtpPage() {
   const [canResend, setCanResend] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     const otpRequired = sessionStorage.getItem('otpRequired');
@@ -22,21 +24,40 @@ export default function OtpPage() {
       router.push(`${BASE_ROUTE}/login`);
     }
 
-    const interval = setInterval(() => {
+    // Start the timer when the component is mounted
+    intervalRef.current = setInterval(() => {
       setTimer((prevTimer) => {
         if (prevTimer === 0) {
           setCanResend(true);
-          clearInterval(interval);
+          clearInterval(intervalRef.current); // Clear the interval when the timer reaches 0
           return 0;
         }
         return prevTimer - 1;
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    // Cleanup the interval when the component is unmounted
+    return () => clearInterval(intervalRef.current);
   }, [router]);
 
   const handleSubmit = async (formData) => {
+    try {
+      const session_user_id = sessionStorage.getItem('user_id');
+
+      if (!session_user_id) {
+        setError('Session expired. Please login again');
+        sessionStorage.clear();
+        router.push(`${BASE_ROUTE}/login`);
+        return;
+      }
+
+      const userId = await decrypt(session_user_id);
+      formData.append('user_id', userId);
+    } catch (error) {
+      console.error('Error decrypting user_id:', error);
+      setError('Something went wrong, could not send OTP. Try again');
+      return;
+    }
     const result = await verifyOtpAction(formData);
     if (result.error) {
       setError(result.error);
@@ -44,18 +65,55 @@ export default function OtpPage() {
     } else if (result.success) {
       setSuccessMessage(result.success);
       setError('');
-      sessionStorage.removeItem('otpRequired');
-      sessionStorage.removeItem('otpExpiry');
+      sessionStorage.clear();
       router.push(`${DEFAULT_LOGIN_REDIRECT}`);
-    }
+    };
   };
 
   const handleResendOtp = async () => {
-    // Implement OTP resend logic here
-    // For now, we'll just reset the timer and disable the resend button
+    try {
+      const session_user_id = sessionStorage.getItem('user_id');
+
+      if (!session_user_id) {
+        setError('Session expired. Please login again');
+        sessionStorage.clear();
+        router.push(`${BASE_ROUTE}/login`);
+        return;
+      }
+
+      const userId = await decrypt(session_user_id);
+      const result = await resendOtpAction(userId);
+
+      if (result.error) {
+        setError(result.error);
+        setSuccessMessage('');
+      };
+
+      if (result.success) {
+        setSuccessMessage(result.success);
+        setError('');
+        sessionStorage.setItem('otpExpiry', Date.now() + 600000);
+      };
+    } catch (error) {
+      console.error('Error decrypting user_id:', error);
+      setError('Something went wrong, could not send OTP. Try again');
+      return;
+    };
+
     setTimer(60);
     setCanResend(false);
-    // You would typically call an API endpoint to resend the OTP here
+
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setTimer((prevTimer) => {
+        if (prevTimer === 0) {
+          setCanResend(true);
+          clearInterval(intervalRef.current); // Clear interval when timer reaches 0
+          return 0;
+        }
+        return prevTimer - 1;
+      });
+    }, 1000);
   };
 
   return (

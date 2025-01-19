@@ -8,23 +8,32 @@ import {
 } from "./cookie";
 
 
-const HTTPS = process.env.HTTPS;
+const HTTPS = process.env.HTTPS === 'true';
 const API_BASE_URL = HTTPS ? process.env.PUBLIC_API_BASE_HTTPS_URL : process.env.PUBLIC_API_BASE_URL;
 
-export const login = async (credentials) => {
+export const login = async (data) => {
   const response = await apiClient(`${API_BASE_URL}/login/`, {
     method: "POST",
-    body: JSON.stringify(credentials),
+    body: JSON.stringify(data),
   });
 
   return response;
 };
 
 
-export const getToken = async (otp) => {
+export const getToken = async (data) => {
   const response = await apiClient(`${API_BASE_URL}/token/`, {
     method: "POST",
-    body: JSON.stringify(otp),
+    body: JSON.stringify(data),
+  });
+
+  return response;
+};
+
+export const resendOtp = async (data) => {
+  const response = await apiClient(`${API_BASE_URL}/resend-otp/`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 
   return response;
@@ -54,7 +63,7 @@ export const refreshToken = async () => {
     throw new Error("Refresh token not found.");
   };
   
-  const response = await fetchClient(`${API_BASE_URL}/token/refresh/`, {
+  const response = await apiClient(`${API_BASE_URL}/token/refresh/`, {
     method: "POST",
     body: JSON.stringify({ refresh: refreshToken }),
   });
@@ -63,7 +72,7 @@ export const refreshToken = async () => {
     const user_id = await getUserIdFromSession();
     const user_role = await getUserRoleFromSession();
 
-    data = {
+    const data = {
       access_token: response.access,
       refresh_token: response.refresh,
       user_role: user_role,
@@ -72,6 +81,14 @@ export const refreshToken = async () => {
 
     await setSessionCookie(data);
   };
+
+  return response;
+};
+
+export const getUsers = async () => {
+  const response = await apiClient(`${API_BASE_URL}/users/`, {
+    method: "GET",
+  });
 
   return response;
 };

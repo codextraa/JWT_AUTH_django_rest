@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { loginAction } from '@/actions/authActions';
 import { LoginButton } from './Button';
 import { BASE_ROUTE } from '@/route';
+import { encrypt } from '@/libs/session';
 import styles from './LoginForm.module.css';
 
 export default function LoginForm() {
@@ -29,22 +30,27 @@ export default function LoginForm() {
 
   const handleSubmit = async (formData) => {
     const result = await loginAction(formData);
-    console.log('result', result);
     if (result.error) {
       setError(result.error);
       setSuccessMessage('');
-    } else if (result.success) {
+    } else if (result.success && result.otp) {
+      // Store OTP status in sessionStorage
+      setOtp(true);
+      try {
+        const userId = await encrypt(result.user_id);
+        sessionStorage.setItem('user_id', userId);
+      } catch (error) {
+        console.log('Error encrypting user_id:', error);
+        setError('Something went wrong. Try again');
+        return
+      };
       setSuccessMessage(result.success);
       setError('');
-      if (result.otp) {
-        // Store OTP status in sessionStorage
-        setOtp(true);
-        sessionStorage.setItem('otpRequired', 'true');
-        sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-        router.push(`${BASE_ROUTE}/otp`);
-      } else {
-        setError('Something went wrong, could not send OTP. Try again');
-      };
+      sessionStorage.setItem('otpRequired', 'true');
+      sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
+      router.push(`${BASE_ROUTE}/otp`);
+    } else {
+      setError('Something went wrong, could not send OTP. Try again');
     };
   };
 

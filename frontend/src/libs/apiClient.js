@@ -22,7 +22,6 @@ export const apiClient = async (url, options = {}) => {
   try {
     const response = await fetch(url, options);
 
-    console.log("apiClient", response);
     if (!response.ok) {
       if (response.status === 401) {
         await refreshToken();

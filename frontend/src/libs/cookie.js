@@ -3,20 +3,16 @@ import { encrypt, decrypt, validateSessionData } from './session';
 import { BASE_ROUTE } from '@/route';
 
 export const setSessionCookie = async (data) => {
-  console.log('data', data);
   try {
     // Validate the incoming session data
     const sessionData = validateSessionData(data); // Sanitize and validate data
 
-    console.log('sessionData', sessionData);
     if (!sessionData) {
       throw new Error('Invalid session data.');
     };
 
     // Encrypt the session data
-    const encryptedSessionData = encrypt(sessionData);
-
-    console.log('encryptedSessionData', encryptedSessionData);
+    const encryptedSessionData = await encrypt(sessionData);
 
     // Create a secure cookie
     // Set the secure cookie using Next.js cookies API
@@ -28,8 +24,6 @@ export const setSessionCookie = async (data) => {
       path: BASE_ROUTE, // Dynamic path
       sameSite: 'lax', // Helps prevent CSRF attacks
     });
-
-    console.log('Cookie set successfully', cookieStore.get('session'));
 
     return { success: 'Successfully set cookie!' };
   } catch (error) {
@@ -47,7 +41,7 @@ export const getUserIdFromSession = async () => {
   };
 
   try {
-    const decryptedData = decrypt(sessionCookie.value); // Decrypt the session data
+    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.user_id || null; // Return user_id if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
@@ -64,7 +58,7 @@ export const getUserRoleFromSession = async () => {
   };
 
   try {
-    const decryptedData = decrypt(sessionCookie.value); // Decrypt the session data
+    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.user_role || null; // Return user_role if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
@@ -81,7 +75,7 @@ export const getAccessTokenFromSession = async () =>  {
   };
 
   try {
-    const decryptedData = decrypt(sessionCookie.value); // Decrypt the session data
+    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.access_token || null; // Return access_token if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
@@ -98,7 +92,7 @@ export const getRefreshTokenFromSession = async () =>  {
   };
 
   try {
-    const decryptedData = decrypt(sessionCookie.value); // Decrypt the session data
+    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.refresh_token || null; // Return refresh_token if present
   } catch (error) {
     console.error('Error decrypting session data:', error);

@@ -317,7 +317,7 @@ class TokenView(TokenObtainPairView):
         
         user = check_user_id(user_id)
         
-        if not user:
+        if isinstance(user, Response):
             return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Verify OTP
@@ -861,7 +861,6 @@ class UserViewSet(ModelViewSet):
             {f"User {user_to_activate.email} has been reactivated."},
             status=status.HTTP_200_OK,
         )
-        
 
 class LogoutView(APIView):
     """
@@ -897,17 +896,13 @@ class LogoutView(APIView):
         try:
             # Extract tokens from the request
             refresh_token = request.data.get("refresh")
-            access_token = request.auth
 
-            if not refresh_token or not access_token:
+            if not refresh_token:
                 return Response({"error": "Tokens are required"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Blacklist refresh token
             token = RefreshToken(refresh_token)
             token.blacklist()
-
-            # Blacklist access token
-            cache.set(f"blacklisted_access_token_{access_token}", True, timeout=600)  # Expires in 10 minutes
 
             return Response({"success": "Logged out successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
