@@ -27,17 +27,6 @@ export const getToken = async (otp) => {
     body: JSON.stringify(otp),
   });
 
-  if (response.access && response.refresh && response.user_role ** response.user_id) {
-    data = {
-      access_token: response.access,
-      refresh_token: response.refresh,
-      user_role: response.user_role,
-      user_id: response.user_id
-    }
-
-    await setSessionCookie(data);
-  };
-
   return response;
 };
 

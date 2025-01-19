@@ -31,8 +31,12 @@ class LoginSerializer(serializers.Serializer):
     
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=True)
+    
+class ResendOtpSerializer(serializers.Serializer):
+    user_id = serializers.CharField(required=True)
 
 class TokenRequestSerializer(serializers.Serializer):
+    user_id = serializers.CharField(required=True)
     otp = serializers.CharField(required=True)
     
 class PasswordResetRequestSerializer(serializers.Serializer):

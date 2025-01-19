@@ -13,7 +13,6 @@ class EmailOtp:
     @staticmethod
     def generate_otp():
         otp = random.randint(100000, 999999)
-        cache.set(f'otp_{otp}', otp, timeout=600)
         return otp
     
     @staticmethod
@@ -31,10 +30,15 @@ class EmailOtp:
             return False
         
     @staticmethod
-    def verify_otp(request_otp):
-        stored_otp = cache.get(f'otp_{request_otp}')
+    def verify_otp(user_id, request_otp):
+        stored_otp = cache.get(f'otp_{user_id}')
         
-        if not stored_otp:
+        try:
+            request_otp = int(request_otp)
+        except ValueError:
+            return False
+        
+        if stored_otp != request_otp:
             return False
         else:
             cache.delete(f'otp_{request_otp}')

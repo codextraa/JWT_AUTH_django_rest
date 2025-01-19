@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 
-const SECRET_KEY = process.env.SECRET_KEY
+const SECRET_KEY = process.env.AUTH_SECRET_KEY;
 const ALGORITHM = 'aes-256-gcm';
 
 export function validateSessionData(data) {
@@ -38,8 +38,8 @@ export function validateSessionData(data) {
   return {
     user_id: data.user_id,
     user_role: data.user_role,
-    access_token_token: data.access_token,
-    refresh_token_token: data.refresh_token,
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
   };
 };
 

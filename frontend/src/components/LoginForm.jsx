@@ -30,8 +30,8 @@ export default function LoginForm() {
   const handleSubmit = async (formData) => {
     const result = await loginAction(formData);
     console.log('result', result);
-    if (result.errors) {
-      setError(result.errors);
+    if (result.error) {
+      setError(result.error);
       setSuccessMessage('');
     } else if (result.success) {
       setSuccessMessage(result.success);

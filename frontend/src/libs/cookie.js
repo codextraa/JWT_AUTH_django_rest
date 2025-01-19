@@ -3,9 +3,12 @@ import { encrypt, decrypt, validateSessionData } from './session';
 import { BASE_ROUTE } from '@/route';
 
 export const setSessionCookie = async (data) => {
+  console.log('data', data);
   try {
     // Validate the incoming session data
     const sessionData = validateSessionData(data); // Sanitize and validate data
+
+    console.log('sessionData', sessionData);
     if (!sessionData) {
       throw new Error('Invalid session data.');
     };
@@ -13,16 +16,20 @@ export const setSessionCookie = async (data) => {
     // Encrypt the session data
     const encryptedSessionData = encrypt(sessionData);
 
+    console.log('encryptedSessionData', encryptedSessionData);
+
     // Create a secure cookie
     // Set the secure cookie using Next.js cookies API
     const cookieStore = await cookies();
     cookieStore.set('session', encryptedSessionData, {
       httpOnly: true,
-      secure: process.env.HTTPS, // Secure in production
+      secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 60 * 60 * 24, // One day in seconds
       path: BASE_ROUTE, // Dynamic path
       sameSite: 'lax', // Helps prevent CSRF attacks
     });
+
+    console.log('Cookie set successfully', cookieStore.get('session'));
 
     return { success: 'Successfully set cookie!' };
   } catch (error) {

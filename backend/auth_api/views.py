@@ -31,6 +31,7 @@ from .serializers import (
     UserFilterSerializer,
     LoginSerializer,
     LogoutSerializer,
+    ResendOtpSerializer,
     TokenRequestSerializer,
     PasswordResetSerializer,
     PasswordResetRequestSerializer,
@@ -90,6 +91,61 @@ def get_user_role(user):
         
     return user_role
 
+def check_user_id(user_id):
+    """Check if user id exists."""
+    if not user_id:
+        return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = get_user_model().objects.filter(id=user_id).first()
+    
+    if not user:
+        return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    return user
+
+def create_otp(user_id, email, password):
+    # Generate OTP
+    otp = EmailOtp.generate_otp()
+    otp_email = EmailOtp.send_email_otp(email, otp)
+    
+    # Check if the email was sent
+    if otp_email:
+        # Setting the cache data
+        cache.set(f"id_{user_id}", user_id, timeout=60) # Cache id for 1 minute (used for email verification)
+        cache.set(f"otp_{user_id}", otp, timeout=60) # Cache otp for 1 minute (used for otp verification)
+        cache.set(f"email_{user_id}", email, timeout=600) # Cache email for 10 minutes (used for otp verification)
+        cache.set(f"password_{user_id}", password, timeout=600)  # Store password in cache for verification
+        return Response({"success": "Email sent", "otp": True, "user_id": user_id}, status=status.HTTP_200_OK)
+    else:
+        return Response({"error": "Something went wrong, could not send OTP. Try again", "otp": False}, status=status.HTTP_400_BAD_REQUEST)
+
+def check_throttle_duration(self, request):
+    """
+    Check duration for throttling
+    """
+    throttle_durations = []
+    for throttle in self.get_throttles():
+        if not throttle.allow_request(request, self):
+            throttle_durations.append(throttle.wait())
+            
+    return throttle_durations
+
+def start_throttle(self, throttle_durations, request):
+    # Filter out `None` values which may happen in case of config / rate
+    # changes, see #1438
+    durations = [
+        duration for duration in throttle_durations
+        if duration is not None
+    ]
+
+    duration = max(durations, default=None)
+    self.throttled(request, duration)
+
 
 class LoginView(APIView):
     """Login to get an otp."""
@@ -103,23 +159,17 @@ class LoginView(APIView):
         Check if request should be throttled.
         Raises an appropriate exception if the request is throttled.
         """
-        throttle_durations = []
-        for throttle in self.get_throttles():
-            if not throttle.allow_request(request, self):
-                throttle_durations.append(throttle.wait())
+        throttle_durations = check_throttle_duration(self, request)
                 
-        cached_email = cache.get(f"email_{request.data.get('email')}")
+        user = get_user_model().objects.filter(email=request.data.get('email')).first()
+        
+        if user:
+            cached_id = cache.get(f"id_{user.id}")
+        else:
+            cached_id = None
 
-        if throttle_durations and cached_email:
-            # Filter out `None` values which may happen in case of config / rate
-            # changes, see #1438
-            durations = [
-                duration for duration in throttle_durations
-                if duration is not None
-            ]
-
-            duration = max(durations, default=None)
-            self.throttled(request, duration)
+        if throttle_durations and cached_id:
+            start_throttle(self, throttle_durations, request)
 
     @extend_schema(
         request=LoginSerializer,
@@ -162,28 +212,74 @@ class LoginView(APIView):
             return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Generate OTP
-        response = self._generate_otp(request)
+        response = create_otp(user.id, email, password)
         
         return response
     
-    def _generate_otp(self, request):
-        """Generate OTP and send email."""
-        email = request.data.get('email')
-        password = request.data.get('password')
+class ResendOtpView(APIView):
+    """Resend OTP."""
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp'
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = check_throttle_duration(self, request)
+                
+        cached_id = cache.get(f"id_{request.data.get('user_id')}")
+
+        if throttle_durations and cached_id:
+            start_throttle(self, throttle_durations, request)
+    
+    @extend_schema(
+        request=ResendOtpSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Email sent",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "Email sent"},
+                        "otp": {"type": "boolean", "example": True},
+                        "user_id": {"type": "integer", "example": 1}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Error response",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {"type": "string", "example": "Invalid credentials"}
+                    }
+                }
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        # Get email and password
+        user_id = request.data.get('user_id')
+        
+        user = check_user_id(user_id)
+        
+        if isinstance(user, Response):
+            return user
+        
+        email = cache.get(f"email_{user.id}")
+        password = cache.get(f"password_{user.id}")
+        
+        if not email or not password:
+            return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
         
         # Generate OTP
-        otp = EmailOtp.generate_otp()
-        otp_email = EmailOtp.send_email_otp(email, otp)
+        response = create_otp(user.id, email, password)
         
-        # Check if the email was sent
-        if otp_email:
-            cache.set(f"email_{email}", email, timeout=60) # Cache email for 1 minute (used for email verification)
-            cache.set(f"email_{otp}", email, timeout=600) # Cache email for 10 minutes (used for otp verification)
-            cache.set(f"password_{otp}", password, timeout=600)  # Store password in cache for verification
-            return Response({"success": "Email sent", "otp": True}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Something went wrong, could not send OTP. Try again", "otp": False}, status=status.HTTP_400_BAD_REQUEST)
-       
+        return response
+    
 class TokenView(TokenObtainPairView):
     """Generate token after OTP verification."""
     renderer_classes = [ViewRenderer]
@@ -216,20 +312,23 @@ class TokenView(TokenObtainPairView):
     )
     def post(self, request, *args, **kwargs):
         # Get OTP from the request
+        user_id = request.data.get("user_id")
         otp_from_request = request.data.pop("otp", None)
         
-        if not otp_from_request:
-            return Response({"error": "OTP is required"}, status=status.HTTP_400_BAD_REQUEST)
+        user = check_user_id(user_id)
+        
+        if not user:
+            return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
         
         # Verify OTP
-        otp_verify = EmailOtp.verify_otp(otp_from_request)
+        otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
         
         if not otp_verify:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Get email and password from the cache
-        email = cache.get(f"email_{otp_from_request}")
-        password = cache.get(f"password_{otp_from_request}")
+        email = cache.get(f"email_{user.id}")
+        password = cache.get(f"password_{user.id}")
 
         if not email or not password:
             return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
@@ -241,11 +340,8 @@ class TokenView(TokenObtainPairView):
         # Generate token
         response = super().post(request, *args, **kwargs)
         
-        cache.delete(f"email_{otp_from_request}")
-        cache.delete(f"password_{otp_from_request}")
-        
-        # Get user role and id
-        user = get_user_model().objects.get(email=email)
+        cache.delete(f"email_{user.id}")
+        cache.delete(f"password_{user.id}")
         
         user_role = get_user_role(user)
         
@@ -336,23 +432,12 @@ class PasswordResetView(APIView):
         Check if request should be throttled.
         Raises an appropriate exception if the request is throttled.
         """
-        throttle_durations = []
-        for throttle in self.get_throttles():
-            if not throttle.allow_request(request, self):
-                throttle_durations.append(throttle.wait())
+        throttle_durations = check_throttle_duration(self, request)
                 
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            # Filter out `None` values which may happen in case of config / rate
-            # changes, see #1438
-            durations = [
-                duration for duration in throttle_durations
-                if duration is not None
-            ]
-
-            duration = max(durations, default=None)
-            self.throttled(request, duration)
+            start_throttle(self, throttle_durations, request)
     
     @extend_schema(
         operation_id="password_reset_verify_link",
@@ -532,23 +617,12 @@ class UserViewSet(ModelViewSet):
         Check if request should be throttled.
         Raises an appropriate exception if the request is throttled.
         """
-        throttle_durations = []
-        for throttle in self.get_throttles():
-            if not throttle.allow_request(request, self):
-                throttle_durations.append(throttle.wait())
+        throttle_durations = check_throttle_duration(self, request)
                 
         cached_email = cache.get(f"email_{request.data.get('email')}")
 
         if throttle_durations and cached_email and request.method == "POST":
-            # Filter out `None` values which may happen in case of config / rate
-            # changes, see #1438
-            durations = [
-                duration for duration in throttle_durations
-                if duration is not None
-            ]
-
-            duration = max(durations, default=None)
-            self.throttled(request, duration)
+            start_throttle(self, throttle_durations, request)
     
     def create(self, request, *args, **kwargs):
         """Create new user and send email verification link."""
