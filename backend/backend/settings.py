@@ -241,7 +241,8 @@ REST_FRAMEWORK = {
 REST_USE_JWT = True
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(seconds=30),
+    # 10 second window for access_token_expiry setup
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5, seconds=10),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     
      # Set the RS256 algorithm

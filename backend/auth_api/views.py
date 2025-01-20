@@ -1,5 +1,5 @@
 """Views for Auth API."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
@@ -9,12 +9,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
+from django.utils.timezone import now
 from allauth.socialaccount.models import SocialAccount
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
@@ -340,6 +342,8 @@ class TokenView(TokenObtainPairView):
         # Generate token
         response = super().post(request, *args, **kwargs)
         
+        response.data['access_token_expiry'] = (now() + timedelta(minutes=5)).isoformat()
+        
         cache.delete(f"email_{user.id}")
         cache.delete(f"password_{user.id}")
         
@@ -347,8 +351,55 @@ class TokenView(TokenObtainPairView):
         
         response.data['user_role'] = user_role
         response.data['user_id'] = user.id
+        response.data['access_token'] = response.data['access']
+        response.data['refresh_token'] = response.data['refresh']
+        response.data.pop('access')
+        response.data.pop('refresh')
 
         return response
+    
+class RefreshTokenView(TokenRefreshView):
+    renderer_classes = [ViewRenderer]
+    
+    def post(self, request, *args, **kwargs):
+        # Call the parent method to get the response
+        try:
+            refresh_token = request.data.get("refresh")
+            
+            if not refresh_token:
+                return Response({"error": "Tokens are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            response = super().post(request, *args, **kwargs)
+            response.data['access_token_expiry'] = (now() + timedelta(minutes=5)).isoformat()
+
+            # Extract the access token and refresh token
+            refresh_token = response.data.get("refresh")
+            access_token = response.data.get("access")
+
+            if not refresh_token or not access_token:
+                return Response({"error": "Invalid tokens"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Decode the access token to extract user details
+            decoded_token = RefreshToken(refresh_token)
+            user_id = decoded_token.get('user_id', None)
+            if not user_id:
+                raise InvalidToken("Invalid refresh token")
+                
+            # Fetch the user from the database
+            user = get_user_model().objects.get(id=user_id)
+            
+            user_role = get_user_role(user)
+            
+            response.data['user_role'] = user_role
+            response.data['user_id'] = user.id
+            response.data['access_token'] = response.data['access']
+            response.data['refresh_token'] = response.data['refresh']
+            response.data.pop('access')
+            response.data.pop('refresh')
+            
+            return response
+        except TokenError as e:
+            return Response({'error': str(e)}, status=400)
     
 class EmailVerifyView(APIView):
     """View for verifying user's email address after registration."""
@@ -864,9 +915,9 @@ class UserViewSet(ModelViewSet):
 
 class LogoutView(APIView):
     """
-    Logout by blacklisting the refresh and access tokens.
+    Logout by blacklisting the refresh token.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
 
     @extend_schema(
@@ -925,10 +976,11 @@ class GoogleSignupLoginView(SocialLoginView):
 
             # Generate JWT tokens for the user
             refresh = RefreshToken.for_user(user)
+            response.data['access_token_expiry'] = (now() + timedelta(minutes=5)).isoformat()
             response.data['access'] = str(refresh.access_token)
             response.data['refresh'] = str(refresh)
             response.data['user_id'] = user.id
-            response.data['is_new_user'] = user.is_new_user  # Optional flag
+            response.data['user_role'] = 'Default'
             
             return response
         

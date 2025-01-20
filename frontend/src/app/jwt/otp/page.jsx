@@ -121,7 +121,7 @@ export default function OtpPage() {
       <h1 className={styles.title}>OTP Verification</h1>
       <form className={styles.form} action={handleSubmit}>
         <div className={styles.inputGroup}>
-          <label htmlFor="otp">Enter OTP:</label>
+          <label htmlFor="otp">Enter the OTP sent in your mail:</label>
           <input type="text" id="otp" name="otp" required />
         </div>
         <OtpVerifyButton />

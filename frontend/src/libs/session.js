@@ -32,12 +32,18 @@ export function validateSessionData(data) {
   };
   data.refresh_token = data.refresh_token.trim();
 
+  if (typeof data.access_token_expiry !== 'string' || data.access_token_expiry.trim() === '') {
+    return null;
+  };
+  data.access_token_expiry = data.access_token_expiry.trim();
+
   // Return sanitized and valid data
   return {
     user_id: data.user_id,
     user_role: data.user_role,
     access_token: data.access_token,
     refresh_token: data.refresh_token,
+    access_token_expiry: data.access_token_expiry
   };
 };
 
@@ -48,7 +54,6 @@ export function validateSessionData(data) {
  */
 export async function encrypt(data) {
   if (!SECRET_KEY || SECRET_KEY.length !== 64) {
-    console.log('SECRET_KEY:', SECRET_KEY, 'Length:', SECRET_KEY?.length);
     throw new Error('Invalid SECRET_KEY. Ensure it is a 64-character hex string.');
   }
 

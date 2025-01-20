@@ -8,6 +8,5 @@ export const authRoutes = [
 ]
 
 export const publicRoutes = [
-  '/',
   `${BASE_ROUTE}`,
 ]

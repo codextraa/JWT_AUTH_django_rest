@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getAccessTokenFromSession } from "@/libs/cookie";
+import {
+  getAccessTokenExpiryFromSession, 
+  updateSessionCookie,
+} from "@/libs/cookie";
 import {
   BASE_ROUTE,
   DEFAULT_LOGIN_REDIRECT,
@@ -12,11 +15,19 @@ export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
 
-  const accessToken = await getAccessTokenFromSession();
+  let isLoggedIn = await getAccessTokenExpiryFromSession();
+  let updatedCookie;
+
+  if (!isLoggedIn) {
+    updatedCookie = await updateSessionCookie(req);
+    if (updatedCookie) {
+      isLoggedIn = true;
+    }
+  };
 
   // Check if it's an auth route (login, register)
   const isAuthRoute = authRoutes.includes(pathname);
-  const isLoggedIn = accessToken;
+  const isPublicRoute = publicRoutes.includes(pathname);
 
   if (isAuthRoute) {
     console.log('Handling auth route');
@@ -33,7 +44,6 @@ export async function middleware(req) {
   };
 
   // Check if it's a public route
-  const isPublicRoute = publicRoutes.includes(pathname);
   if (isPublicRoute) {
     console.log('Handling public route');
     return NextResponse.next(); // Allow access to public routes
@@ -49,6 +59,24 @@ export async function middleware(req) {
     }
     return NextResponse.redirect(new URL(`${BASE_ROUTE}/login`, req.url)); // Redirect to login page
   };
+
+  if (updatedCookie) {
+    const res = NextResponse.next();
+
+    // Set the updated session cookie in the response
+    // cookieStore takes time to set the cookie and update the client side
+    // therefore it is not available right at the moment the next request is called
+    // this is for the next response so that it gets the updated cookie value
+    res.cookies.set(updatedCookie.name, updatedCookie.value, {
+      httpOnly: updatedCookie.httpOnly,
+      secure: updatedCookie.secure,
+      maxAge: updatedCookie.maxAge,
+      path: updatedCookie.path,
+      sameSite: updatedCookie.sameSite,
+    });
+
+    return res;
+  }
 
   // If everything is fine, allow the request to continue
   return NextResponse.next();
