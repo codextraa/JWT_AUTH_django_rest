@@ -63,7 +63,6 @@ INSTALLED_APPS = [
     'auth_api',
     'corsheaders',
     'rest_framework',
-    'rest_framework.authtoken',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
@@ -76,19 +75,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    'dj_rest_auth',
-    'dj_rest_auth.registration',
-    
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    
-    'allauth.socialaccount.providers.google',
-    # 'allauth.socialaccount.providers.facebook',
-    # 'allauth.socialaccount.providers.instagram',
-    # 'allauth.socialaccount.providers.linkedin_oauth2',
-    # 'allauth.socialaccount.providers.github',
 ]
 
 MIDDLEWARE = [
@@ -116,7 +102,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.request',
             ],
         },
     },
@@ -181,34 +166,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Authentication Settings
-
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
-
-# Social Account Settings
-
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
-            'key': ''
-        },
-        'SCOPE': [
-            'profile',
-            'email',
-        ],
-        'AUTH_PARAMS': {
-            'access_type': 'online',
-        },
-    }
-}
-
-SITE_ID = 1
-
 # REST Framework Settings
 
 # Never give comma after drf_spectacular.openapi.AutoSchema
@@ -258,34 +215,6 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-}
-
-# Spectacular Settings
-
-SPECTACULAR_SETTINGS = {
-    "TITLE": "JWT AUTH API",
-    "DESCRIPTION": "API documentation",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-    "SWAGGER_UI_SETTINGS": {
-        "oauth2RedirectUrl": "http://localhost:8000/accounts/google/login/callback/"
-    },
-    "AUTHENTICATION": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
-    ],
-    "SECURITY_DEFINITIONS": {
-        "google_oauth2": {
-            "type": "oauth2",
-            "flow": "authorizationCode",
-            "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth",
-            "tokenUrl": "https://oauth2.googleapis.com/token",
-            "scopes": {
-                "email": "View your email address",
-                "profile": "View your basic profile"
-            }
-        }
-    }
 }
 
 # CORS Settings

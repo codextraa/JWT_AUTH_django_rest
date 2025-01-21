@@ -20,5 +20,4 @@ urlpatterns = [
     path('reset-password/', views.PasswordResetView.as_view(), name='password-reset'),
     path('token/', views.TokenView.as_view(), name='token'),
     path('token/refresh/', views.RefreshTokenView.as_view(), name='token-refresh'),
-    path('accounts/google/signup-login/', views.GoogleSignupLoginView.as_view(), name='google-signup-login'),
 ]

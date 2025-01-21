@@ -203,21 +203,3 @@ class UserImageSerializer(serializers.ModelSerializer):
 
         return value
     
-class GoogleUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = get_user_model()
-        fields = ('id', 'email', 'first_name', 'last_name')
-        read_only_fields = ('id',)
-
-    def create(self, validated_data):
-        """
-        Create a new user or update an existing one.
-        """
-        user, _ = get_user_model().objects.get_or_create(
-            email=validated_data['email'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            is_email_verified=True,
-            auth_provider='google',
-        )
-        return user
