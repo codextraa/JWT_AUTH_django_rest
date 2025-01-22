@@ -173,3 +173,6 @@ cython_debug/
 #Secret keys
 private_key.pem
 public_key.pem
+
+#Django static folder
+static

@@ -50,8 +50,8 @@ DEBUG = os.getenv("DEBUG", 'False') == 'True'
 TESTING = os.getenv("TESTING", 'False') == 'True'
 
 # Allowed Hosts
-if ENVIRONMENT == "development":
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+if ENVIRONMENT == "Development":
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'localhost:8000']
 else:
     ALLOWED_HOSTS = []
 
@@ -75,6 +75,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    # 'allauth.socialaccount.providers.facebook',
+    # 'allauth.socialaccount.providers.github',
+    # 'allauth.socialaccount.providers.twitter',
+    # 'allauth.socialaccount.providers.linkedin_oauth2',
+    # 'allauth.socialaccount.providers.instagram',
 ]
 
 MIDDLEWARE = [
@@ -86,7 +97,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "allauth.account.middleware.AccountMiddleware",
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -102,6 +113,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
             ],
         },
     },
@@ -160,11 +172,36 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Social Account Providers
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+LOGIN_REDIRECT_URL = '/jwt/login'
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SITE_ID = 2
 
 # REST Framework Settings
 
@@ -223,12 +260,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://192.168.56.1:3000",
-    "https://localhost:3000",
-    "https://127.0.0.1:3000",
-    "https://192.168.56.1:3000",
-    "https://localhost:443",
-    "https://127.0.0.1:443",
-    "https://192.168.56.1:443",
+    "https://localhost",
+    "https://127.0.0.1",
+    "https://192.168.56.1",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -239,14 +273,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",  
     "http://127.0.0.1:3000",
     "http://192.168.56.1:3000",
-    "https://localhost:3000",  
-    "https://localhost:443",
-    "https://127.0.0.1:3000",
-    "https://127.0.0.1:443",
-    "https://192.168.56.1:3000",
-    "https://localhost:443",
-    "https://127.0.0.1:443",
-    "https://192.168.56.1:443",
+    "https://localhost",
+    "https://127.0.0.1",
+    "https://192.168.56.1",
 ]
 
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS

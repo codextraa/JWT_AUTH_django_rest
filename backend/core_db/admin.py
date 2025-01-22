@@ -13,7 +13,7 @@ class UserAdmin(BaseUserAdmin):
     #Fields to be displayed on the user detail page
     fieldsets = (
         (None, {
-            'fields': ('email', 'username', 'password', 'slug')
+            'fields': ('email', 'username', 'password', 'slug', 'auth_provider')
         }),
         ('Personal_info', {
             'fields': ('first_name', 'last_name', 'phone_number', 'profile_img')
