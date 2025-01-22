@@ -1,6 +1,6 @@
 'use server';
 
-import { login, getToken, resendOtp} from '@/libs/api';
+import { login, getToken, resendOtp, googleLogin} from '@/libs/api';
 import { setSessionCookie } from '@/libs/cookie';
 
 export async function loginAction(formData) {
@@ -65,4 +65,45 @@ export async function resendOtpAction(user_id) {
     console.log(error);
     return { error: error.message || 'An error occurred during login.' };
   };
+};
+
+export async function googleLoginAction() {
+  try {
+    const response = await googleLogin();
+    console.log('response', response);
+    return response;
+  } catch (error) {
+    console.log(error);
+    return { error: error.message || 'An error occurred during login.' };
+  };
+};
+
+export async function facebookLoginAction() {
+  // Implement Facebook login logic
+  console.log("Facebook login action")
+  return { success: "Facebook login successful" }
+};
+
+export async function instagramLoginAction() {
+  // Implement Instagram login logic
+  console.log("Instagram login action")
+  return { success: "Instagram login successful" }
+};
+
+export async function linkedinLoginAction() {
+  // Implement LinkedIn login logic
+  console.log("LinkedIn login action")
+  return { success: "LinkedIn login successful" }
+};
+
+export async function githubLoginAction() {
+  // Implement GitHub login logic
+  console.log("GitHub login action")
+  return { success: "GitHub login successful" }
+};
+
+export async function twitterLoginAction() {
+  // Implement Twitter login logic
+  console.log("Twitter login action")
+  return { success: "Twitter login successful" }
 };

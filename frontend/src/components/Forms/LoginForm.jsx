@@ -4,10 +4,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { loginAction } from '@/actions/authActions';
-import { LoginButton } from './Button';
 import { BASE_ROUTE } from '@/route';
 import { encrypt } from '@/libs/session';
 import styles from './LoginForm.module.css';
+import { 
+  LoginButton,
+  GoogleLoginButton,
+  FacebookLoginButton,
+  InstagramLoginButton,
+  TwitterLoginButton,
+  LinkedInLoginButton,
+  GitHubLoginButton,
+} from '../Buttons/Button';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -29,29 +37,31 @@ export default function LoginForm() {
   }, []);
 
   const handleSubmit = async (formData) => {
-    const result = await loginAction(formData);
-    if (result.error) {
-      setError(result.error);
-      setSuccessMessage('');
-    } else if (result.success && result.otp) {
-      // Store OTP status in sessionStorage
-      setOtp(true);
-      try {
-        const userId = await encrypt(result.user_id);
-        sessionStorage.setItem('user_id', userId);
-      } catch (error) {
-        console.log('Error encrypting user_id:', error);
-        setError('Something went wrong. Try again');
-        return
-      };
-      setSuccessMessage(result.success);
-      setError('');
-      sessionStorage.setItem('otpRequired', 'true');
-      sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-      router.push(`${BASE_ROUTE}/otp`);
-    } else {
-      setError('Something went wrong, could not send OTP. Try again');
-    };
+    const action = formData.get('action');
+    console.log(action);
+    // const result = await loginAction(formData);
+    // if (result.error) {
+    //   setError(result.error);
+    //   setSuccessMessage('');
+    // } else if (result.success && result.otp) {
+    //   // Store OTP status in sessionStorage
+    //   setOtp(true);
+    //   try {
+    //     const userId = await encrypt(result.user_id);
+    //     sessionStorage.setItem('user_id', userId);
+    //   } catch (error) {
+    //     console.log('Error encrypting user_id:', error);
+    //     setError('Something went wrong. Try again');
+    //     return
+    //   };
+    //   setSuccessMessage(result.success);
+    //   setError('');
+    //   sessionStorage.setItem('otpRequired', 'true');
+    //   sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
+    //   router.push(`${BASE_ROUTE}/otp`);
+    // } else {
+    //   setError('Something went wrong, could not send OTP. Try again');
+    // };
   };
 
   return (
@@ -60,11 +70,11 @@ export default function LoginForm() {
       {successMessage && <p className={styles.success}>{successMessage}</p>}
       <div className={styles.inputGroup}>
         <label htmlFor="email">Email:</label>
-        <input type="email" id="email" name="email" required />
+        <input type="email" id="email" name="email"/>
       </div>
       <div className={styles.inputGroup}>
         <label htmlFor="password">Password:</label>
-        <input type="password" id="password" name="password" required />
+        <input type="password" id="password" name="password"/>
       </div>
       <LoginButton />
       <div className={styles.actionLinks}>
@@ -75,6 +85,14 @@ export default function LoginForm() {
         <Link href={`${BASE_ROUTE}/otp`} className={styles.verifyOtp}>
           Verify OTP
         </Link>}
+      </div>
+      <div className={styles.socialLogin}>
+        <GoogleLoginButton />
+        <FacebookLoginButton />
+        <InstagramLoginButton />
+        <LinkedInLoginButton />
+        <GitHubLoginButton />
+        <TwitterLoginButton />
       </div>
     </form>
   );

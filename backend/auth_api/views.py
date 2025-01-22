@@ -17,6 +17,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.utils.timezone import now
+from django.middleware.csrf import get_token
 from .renderers import ViewRenderer
 from .utils import (
     EmailOtp,
@@ -143,7 +144,14 @@ def start_throttle(self, throttle_durations, request):
 
     duration = max(durations, default=None)
     self.throttled(request, duration)
-
+    
+class CSRFTokenView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request, *args, **kwargs):
+        csrf_token = get_token(request)
+        csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1)
+        return Response({"csrf_token": csrf_token, "csrf_token_expiry": csrf_token_expiry.isoformat()}, status=status.HTTP_200_OK)
 
 class LoginView(APIView):
     """Login to get an otp."""

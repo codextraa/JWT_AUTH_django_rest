@@ -53,3 +53,10 @@
   margin-bottom: 1rem;
   text-align: center;
 }
+
+.socialLogin {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}

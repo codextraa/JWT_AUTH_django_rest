@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { verifyOtpAction, resendOtpAction } from '@/actions/authActions';
-import { OtpVerifyButton, ResendOtpButton } from '@/components/Button';
+import { OtpVerifyButton, ResendOtpButton } from '@/components/Buttons/Button';
 import { BASE_ROUTE, DEFAULT_LOGIN_REDIRECT } from '@/route';
 import { decrypt } from '@/libs/session';
 import styles from './page.module.css';

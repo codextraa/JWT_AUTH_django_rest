@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
-  getAccessTokenExpiryFromSession, 
+  getAccessTokenExpiryFromSession,
+  getCSRFTokenExpiryFromSession,
   updateSessionCookie,
+  setCSRFCookie
 } from "@/libs/cookie";
 import {
   BASE_ROUTE,
@@ -14,6 +16,14 @@ import {
 export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
+  
+  const isAuthRoute = authRoutes.includes(pathname);
+  const isPublicRoute = publicRoutes.includes(pathname);
+
+  if (isPublicRoute) {
+    console.log('Handling public route');
+    return NextResponse.next(); // Allow access to public routes
+  };
 
   let isLoggedIn = await getAccessTokenExpiryFromSession();
   let updatedCookie;
@@ -25,9 +35,10 @@ export async function middleware(req) {
     }
   };
 
-  // Check if it's an auth route (login, register)
-  const isAuthRoute = authRoutes.includes(pathname);
-  const isPublicRoute = publicRoutes.includes(pathname);
+  // let csrfToken = await getCSRFTokenExpiryFromSession();
+  // if (!csrfToken) {
+  //   await setCSRFCookie();
+  // }
 
   if (isAuthRoute) {
     console.log('Handling auth route');
@@ -41,12 +52,6 @@ export async function middleware(req) {
       return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, req.url)); // Redirect to homepage or dashboard
     }
     return NextResponse.next(); // Allow access to login/register if not logged in
-  };
-
-  // Check if it's a public route
-  if (isPublicRoute) {
-    console.log('Handling public route');
-    return NextResponse.next(); // Allow access to public routes
   };
 
   // Redirect unauthenticated users from protected routes to the login page

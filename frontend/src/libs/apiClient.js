@@ -1,4 +1,7 @@
-import { getAccessTokenFromSession } from "./cookie";
+import { 
+  getAccessTokenFromSession,
+  getCSRFTokenFromSession
+} from "./cookie";
 
 
 export class ApiClient {
@@ -7,42 +10,58 @@ export class ApiClient {
   };
 
   async handleErrors(response) {
-    if (response.ok) {
-      if (response.status === 204) {
-        return null; // No content
-      }
-      return await response.json(); // Success case
-    };
+    const contentType = response.headers.get("Content-Type") || "";
 
-    if (response.status >= 400) {
-      if (response.status === 401) {
-        return { error: "Unauthorized. Please refresh the page. If this persists login again" };
-      }
+  if (response.ok) {
+    if (response.status === 204) {
+      return null; // No content
+    }
 
-      if (response.status === 429) {
-        const error_response = await response.json();
-        const error_message = error_response.errors;
+    if (contentType.includes("application/json")) {
+      return await response.json(); // Parse JSON response
+    }
 
-        try{
-          const match = error_message.match(/(\d+) second(s)?/);
+    return { data: await response.text() }; // Non-JSON response
+  }
+
+  if (response.status >= 400) {
+    if (response.status === 401) {
+      return { error: "Unauthorized. Please refresh the page. If this persists, login again." };
+    }
+
+    if (response.status === 429) {
+      if (contentType.includes("application/json")) {
+        const errorResponse = await response.json();
+        const errorMessage = errorResponse.errors;
+
+        try {
+          const match = errorMessage.match(/(\d+) second(s)?/);
           return { error: `Validation already sent. Please try again in ${match[1]} seconds.` };
         } catch (error) {
           return { error: `Validation already sent. Please try again.` };
-        };
-      };
+        }
+      }
+    }
 
-      const errorData = await response.json();
+    if (contentType.includes("application/json")) {
+      try {
+        const errorData = await response.json();
+        if (errorData.errors) {
+          return { error: errorData.errors }; // Return specific error
+        }
+      } catch (e) {
+        return { error: "Unexpected error occurred." };
+      }
+    }
 
-      if (errorData.errors) {
-        // Return error if present in the response
-        return { error: errorData.errors };
-      };
-
-      return { error: `Something went wrong. Please try again.` };
-    };
+    // Non-JSON error response
+    const errorText = await response.text();
+    console.log(errorText);
+    return { error: `Unexpected error occured. Something went wrong` };
+  }
 
     if (response.status >= 500) {
-      return { errors: "Server error" }; // Server-side error
+      return { error: "Server error" }; // Server-side error
     };
 
     throw new Error("Unexpected error occurred.");
@@ -50,6 +69,7 @@ export class ApiClient {
 
   async request(endpoint, method, data = null, additionalOptions = {}, isMultipart = false) {
     const accessToken = await getAccessTokenFromSession();
+    // const csrfToken = await getCSRFTokenFromSession();
     const url = `${this.baseURL}${endpoint}`;
 
     let options = {
@@ -57,10 +77,13 @@ export class ApiClient {
       headers: {
         "Accept": "application/json",
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        // ...(csrfToken && { "X-CSRFTOKEN": csrfToken }),
       },
       credentials: "include",
       ...additionalOptions,
     };
+
+    console.log('options', options);
 
     if (isMultipart && data instanceof FormData) {
       // For multipart/form-data
