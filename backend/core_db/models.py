@@ -58,6 +58,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('google', 'Google'),
         ('facebook', 'Facebook'),
         ('instagram', 'Instagram'),
+        ('twitter', 'Twitter'),
         ('linkedin', 'LinkedIn'),
         ('github', 'GitHub'),
     ]

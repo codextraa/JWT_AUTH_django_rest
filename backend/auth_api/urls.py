@@ -21,4 +21,5 @@ urlpatterns = [
     path('reset-password/', views.PasswordResetView.as_view(), name='password-reset'),
     path('token/', views.TokenView.as_view(), name='token'),
     path('token/refresh/', views.RefreshTokenView.as_view(), name='token-refresh'),
+    path('auth/<str:provider>/', views.SocialAuthLoginView.as_view(), name='social-auth-login'),
 ]
