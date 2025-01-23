@@ -9,6 +9,7 @@ import {
   BASE_ROUTE,
   DEFAULT_LOGIN_REDIRECT,
   publicRoutes,
+  apiRoute,
   authRoutes,
 } from "./route";
 
@@ -16,16 +17,24 @@ import {
 export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
+  console.log('pathname', pathname);
   
-  const isAuthRoute = authRoutes.includes(pathname);
   const isPublicRoute = publicRoutes.includes(pathname);
+  const isApiRoute = pathname.startsWith(apiRoute);
+  const isAuthRoute = authRoutes.includes(pathname);
 
   if (isPublicRoute) {
     console.log('Handling public route');
     return NextResponse.next(); // Allow access to public routes
   };
 
+  if (isApiRoute) {
+    console.log('Handling API route');
+    return undefined; // Allow access to API routes
+  };
+
   let isLoggedIn = await getAccessTokenExpiryFromSession();
+  console.log('isLoggedIn', isLoggedIn);
   let updatedCookie;
 
   if (!isLoggedIn) {

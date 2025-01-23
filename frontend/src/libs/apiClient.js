@@ -56,7 +56,7 @@ export class ApiClient {
 
     // Non-JSON error response
     const errorText = await response.text();
-    console.log(errorText);
+    // console.log(errorText);
     return { error: `Unexpected error occured. Something went wrong` };
   }
 
@@ -82,8 +82,6 @@ export class ApiClient {
       credentials: "include",
       ...additionalOptions,
     };
-
-    console.log('options', options);
 
     if (isMultipart && data instanceof FormData) {
       // For multipart/form-data

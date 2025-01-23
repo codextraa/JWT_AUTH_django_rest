@@ -1,16 +1,10 @@
 'use client';
 
+import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { useFormStatus } from 'react-dom';
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
-import {
-  googleLoginAction,
-  facebookLoginAction,
-  twitterLoginAction,
-  githubLoginAction,
-  instagramLoginAction,
-  linkedinLoginAction
-} from '@/actions/authActions';
 
 export const LoginButton = () => {
   const { pending } = useFormStatus();
@@ -47,22 +41,38 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
-export function SocialLoginButton({ provider, icon, action }) {
-  const { pending } = useFormStatus()
+function SocialLoginButton({ provider, icon }) {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleClick = async () => {
+    setIsLoading(true)
+    try {
+      await signIn(provider, { redirectTo: "/jwt/login" })
+    } catch (error) {
+      console.error("Error during social login:", error)
+    }
+    setIsLoading(false)
+  }
 
   return (
-    <button type="submit" disabled={pending} className={`${socialStyles.button} ${socialStyles[provider]}`} formAction={action}>
+    <button
+      type="button"
+      disabled={isLoading}
+      className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
+      onClick={handleClick}
+    >
       {icon}
-      <span>{pending ? `Logging in with ${provider}...` : `Login with ${provider}`}</span>
+      <span>{isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}</span>
     </button>
-  )
+  );
 };
 
 export function GoogleLoginButton() {
-  return <SocialLoginButton 
+  return ( <SocialLoginButton 
   provider="Google" 
   icon={<i className="fab fa-google"></i>}
-  action={googleLoginAction}/>
+  />
+  );
 };
 
 export function FacebookLoginButton() {
@@ -70,8 +80,8 @@ export function FacebookLoginButton() {
     <SocialLoginButton 
     provider="Facebook" 
     icon={<i className="fab fa-facebook-f"></i>} 
-    action={facebookLoginAction} />
-  )
+  />
+  );
 };
 
 export function InstagramLoginButton() {
@@ -79,16 +89,16 @@ export function InstagramLoginButton() {
     <SocialLoginButton 
     provider="Instagram" 
     icon={<i className="fab fa-instagram"></i>} 
-    action={instagramLoginAction} />
-  )
+  />
+  );
 };
 
 export function TwitterLoginButton() {
-  return <SocialLoginButton 
+  return ( <SocialLoginButton 
   provider="Twitter" 
   icon={<i className="fab fa-twitter"></i>} 
-  action={twitterLoginAction} 
   />
+  );
 };
 
 export function LinkedInLoginButton() {
@@ -96,13 +106,14 @@ export function LinkedInLoginButton() {
     <SocialLoginButton 
     provider="LinkedIn" 
     icon={<i className="fab fa-linkedin-in"></i>} 
-    action={linkedinLoginAction} />
-  )
+  />
+  );
 };
 
 export function GitHubLoginButton() {
-  return <SocialLoginButton 
+  return ( <SocialLoginButton 
   provider="GitHub" 
   icon={<i className="fab fa-github"></i>} 
-  action={githubLoginAction} />
+  />
+  );
 };

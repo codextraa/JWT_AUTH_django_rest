@@ -1,6 +1,7 @@
 'use server';
 
-import { login, getToken, resendOtp, googleLogin} from '@/libs/api';
+import { signIn } from "next-auth/react"
+import { login, getToken, resendOtp, socialOauth} from '@/libs/api';
 import { setSessionCookie } from '@/libs/cookie';
 
 export async function loginAction(formData) {
@@ -67,43 +68,25 @@ export async function resendOtpAction(user_id) {
   };
 };
 
-export async function googleLoginAction() {
+export async function socialLoginAction(provider, accessToken) {
+  console.log('entered socialLoginAction')
   try {
-    const response = await googleLogin();
-    console.log('response', response);
-    return response;
+    const auth_data = {
+      provider: provider,
+      token: accessToken
+    };
+    const response = await socialOauth(auth_data)
+    if (response.access_token && response.refresh_token 
+      && response.user_role && response.user_id 
+      && response.access_token_expiry) {
+      await setSessionCookie(response);
+      // Return success response if OTP verification is successful
+      return { success: 'OTP verified successfully' };
+    } else {
+      return { error: result.error || "Backend authentication failed" }
+    };
   } catch (error) {
-    console.log(error);
-    return { error: error.message || 'An error occurred during login.' };
+    console.error(error)
+    return { error: error.message || "An error occurred during login." }
   };
-};
-
-export async function facebookLoginAction() {
-  // Implement Facebook login logic
-  console.log("Facebook login action")
-  return { success: "Facebook login successful" }
-};
-
-export async function instagramLoginAction() {
-  // Implement Instagram login logic
-  console.log("Instagram login action")
-  return { success: "Instagram login successful" }
-};
-
-export async function linkedinLoginAction() {
-  // Implement LinkedIn login logic
-  console.log("LinkedIn login action")
-  return { success: "LinkedIn login successful" }
-};
-
-export async function githubLoginAction() {
-  // Implement GitHub login logic
-  console.log("GitHub login action")
-  return { success: "GitHub login successful" }
-};
-
-export async function twitterLoginAction() {
-  // Implement Twitter login logic
-  console.log("Twitter login action")
-  return { success: "Twitter login successful" }
 };

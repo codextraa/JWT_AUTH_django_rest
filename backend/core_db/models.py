@@ -1,4 +1,5 @@
 """JWT User Model"""
+import re, secrets, string
 from django.db import models
 from django.contrib.auth.models import (
     BaseUserManager,
@@ -8,7 +9,6 @@ from django.contrib.auth.models import (
 from phonenumber_field.modelfields import PhoneNumberField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-import re
 
 
 class UserManager(BaseUserManager):
@@ -91,11 +91,44 @@ class User(AbstractBaseUser, PermissionsMixin):
                 not re.search(r"[a-z]", password) or
                 not re.search(r"[A-Z]", password) or
                 not re.search(r"[0-9]", password) or
-                not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password)):
+                not re.search(r"[!@#$%^&*(),.?\":{}|<>[\]~/\\']", password)):
                 raise ValidationError('Password must contain at least 8 characters, '
                                       'including an uppercase letter, a lowercase letter, '
                                       'a number, and a special character.')
 
+    @staticmethod
+    def create_random_password(length=16):
+        """
+        Generate a cryptographically secure random password of the given length.
+        Ensures at least one uppercase letter, one lowercase letter, one digit,
+        and one special character are included in the password.
+        """
+        if length < 4:
+            raise ValueError("Password length must be at least 4 characters to meet the requirements")
+
+        # Define the character sets
+        lower = string.ascii_lowercase
+        upper = string.ascii_uppercase
+        digits = string.digits
+        punctuation = string.punctuation
+
+        # Ensure at least one of each character type
+        password = [
+            secrets.choice(lower),
+            secrets.choice(upper),
+            secrets.choice(digits),
+            secrets.choice(punctuation),
+        ]
+
+        # Fill the rest of the password length with random characters from all sets
+        alphabet = lower + upper + digits + punctuation
+        password += [secrets.choice(alphabet) for _ in range(length - 4)]
+
+        # Shuffle the password to mix the characters
+        secrets.SystemRandom().shuffle(password)
+
+        return ''.join(password)
+    
     def set_password(self, raw_password):
         """Validates raw password before hashing"""
         self._pass_valid(raw_password)

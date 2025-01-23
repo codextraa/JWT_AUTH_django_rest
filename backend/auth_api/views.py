@@ -18,7 +18,8 @@ from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.utils.timezone import now
 from django.middleware.csrf import get_token
-from social_django.utils import psa
+from social_django.utils import load_backend, load_strategy
+from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
 from .utils import (
     EmailOtp,
@@ -37,6 +38,7 @@ from .serializers import (
     PasswordResetSerializer,
     PasswordResetRequestSerializer,
     InputPasswordResetSerializer,
+    SocialOAuthSerializer
 )
 
 
@@ -964,60 +966,54 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-class SocialAuthLoginView(APIView):
+class SocialAuthView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
 
-    # @extend_schema(
-    #     request=SocialAuthLoginSerializer,
-    #     responses={
-    #         200: OpenApiResponse(
-    #             description="Login successful",
-    #             response={
-    #                 "type": "object",
-    #                 "properties": {
-    #                     "success": {"type": "string", "example": "Logged in successfully"}
-    #                 }
-    #             }
-    #         ),
-    #     }
-    # )
-    def post(self, request, provider):
-        oauth_token = request.data.get("token")
-        oauth_token_secret = request.data.get("oauth_token_secret") # For Twitter
-        
-        if not oauth_token:
-            return Response({'error': 'Token is required'}, status=400)
+    @extend_schema(
+        request=SocialOAuthSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Login successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "Logged in successfully"}
+                    }
+                }
+            ),
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        token = request.data.get("token")
+        provider = request.data.get("provider")
+        if not token or not provider:
+            return Response({"error": "Token and provider are required"}, status=400)
 
         try:
-            if provider == "twitter" and oauth_token_secret:
-                # Twitter requires both token and token_secret
-                backend = psa(f'social_core.backends.twitter.TwitterOAuth')
-                user = backend.do_auth(oauth_token, oauth_token_secret)
+            # Load social auth backend dynamically
+            strategy = load_strategy(request)
+            backend = load_backend(strategy, provider, redirect_uri=None)
+            user = backend.do_auth(token)
+
+            if user and user.is_active:
+                # Generate JWT tokens for the authenticated user
+                refresh = RefreshToken.for_user(user)
+                access_token_expiry = (now() + timedelta(minutes=5)).isoformat()
+                user_role = get_user_role(user)
+                
+                return Response({
+                    "access_token": str(refresh.access_token),
+                    "refresh_token": str(refresh),
+                    "access_token_expiry": access_token_expiry,
+                    "user_role": user_role,
+                    "user_id": user.id
+                }, status=200)
             else:
-                # For all other providers, use OAuth2
-                backend = psa(f'social_core.backends.{provider.capitalize()}.{provider.capitalize()}OAuth2')
-                user = backend.do_auth(oauth_token)
-
-            if not user:
-                return Response({'error': 'Authentication failed'}, status=400)
-
-            # Generate JWT tokens for the authenticated user
-            refresh = RefreshToken.for_user(user)
-            access_token_expiry = (now() + timedelta(minutes=5)).isoformat()
-            user_role = get_user_role(user)
-
-            return Response({
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
-                'access_token_expiry': access_token_expiry,
-                'user_role': user_role,
-                'user_id': user.id
-            }, status=200)
-
+                return Response({"error": "Authentication failed"}, status=400)
+        except AuthException as e:
+            return Response({"error": str(e)}, status=400)
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            return Response({"error": str(e)}, status=400)
         
-# npm install react-facebook-login react-google-login react-linkedin-login-oauth2 react-github-login react-twitter-login react-instagram-login
-
-# all of them are old or deprecated give me the latest libraries for next js from internet for this purpose and then do the google, facebook, linkenIn, instagram, github and twitter login functionality and show how u r connecting the view
+        

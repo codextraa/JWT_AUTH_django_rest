@@ -9,8 +9,6 @@ import {
 const HTTPS = process.env.HTTPS === 'true';
 const API_URL = HTTPS? process.env.API_BASE_HTTPS_URL : process.env.API_BASE_URL;
 const apiClient = new ApiClient(API_URL);
-const OAUTH_URL = HTTPS? process.env.OAUTH_BASE_HTTPS_URL : process.env.OAUTH_BASE_URL;
-const oauthClient = new ApiClient(OAUTH_URL);
 
 // API functions
 export const getCSRFToken = async () => {
@@ -48,6 +46,6 @@ export const getUsers = async () => {
   return apiClient.get('/users/');
 };
 
-export const googleLogin = async () => {
-  return oauthClient.get('/google/login/');
-};
+export const socialOauth = async (data) => {
+  return apiClient.post('/social-auth/', data);
+}

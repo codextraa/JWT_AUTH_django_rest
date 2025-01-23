@@ -24,27 +24,6 @@ def validate_password(password):
         
     if errors:
         raise serializers.ValidationError(errors)
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(required=True, write_only=True)
-    
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField(required=True)
-    
-class ResendOtpSerializer(serializers.Serializer):
-    user_id = serializers.CharField(required=True)
-
-class TokenRequestSerializer(serializers.Serializer):
-    user_id = serializers.CharField(required=True)
-    otp = serializers.CharField(required=True)
-    
-class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    
-class InputPasswordResetSerializer(serializers.Serializer):
-    password = serializers.CharField(required=True)
-    c_password = serializers.CharField(required=True)
     
 class PasswordResetSerializer(serializers.ModelSerializer):
     """Password Reset Serializer"""
@@ -203,3 +182,27 @@ class UserImageSerializer(serializers.ModelSerializer):
 
         return value
     
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+    
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True)
+    
+class ResendOtpSerializer(serializers.Serializer):
+    user_id = serializers.CharField(required=True)
+
+class TokenRequestSerializer(serializers.Serializer):
+    user_id = serializers.CharField(required=True)
+    otp = serializers.CharField(required=True)
+    
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    
+class InputPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(required=True)
+    c_password = serializers.CharField(required=True)
+    
+class SocialOAuthSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    provider = serializers.CharField(required=True)

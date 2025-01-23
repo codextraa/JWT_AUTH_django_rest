@@ -37,31 +37,29 @@ export default function LoginForm() {
   }, []);
 
   const handleSubmit = async (formData) => {
-    const action = formData.get('action');
-    console.log(action);
-    // const result = await loginAction(formData);
-    // if (result.error) {
-    //   setError(result.error);
-    //   setSuccessMessage('');
-    // } else if (result.success && result.otp) {
-    //   // Store OTP status in sessionStorage
-    //   setOtp(true);
-    //   try {
-    //     const userId = await encrypt(result.user_id);
-    //     sessionStorage.setItem('user_id', userId);
-    //   } catch (error) {
-    //     console.log('Error encrypting user_id:', error);
-    //     setError('Something went wrong. Try again');
-    //     return
-    //   };
-    //   setSuccessMessage(result.success);
-    //   setError('');
-    //   sessionStorage.setItem('otpRequired', 'true');
-    //   sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-    //   router.push(`${BASE_ROUTE}/otp`);
-    // } else {
-    //   setError('Something went wrong, could not send OTP. Try again');
-    // };
+    const result = await loginAction(formData);
+    if (result.error) {
+      setError(result.error);
+      setSuccessMessage('');
+    } else if (result.success && result.otp) {
+      // Store OTP status in sessionStorage
+      setOtp(true);
+      try {
+        const userId = await encrypt(result.user_id);
+        sessionStorage.setItem('user_id', userId);
+      } catch (error) {
+        console.log('Error encrypting user_id:', error);
+        setError('Something went wrong. Try again');
+        return
+      };
+      setSuccessMessage(result.success);
+      setError('');
+      sessionStorage.setItem('otpRequired', 'true');
+      sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
+      router.push(`${BASE_ROUTE}/otp`);
+    } else {
+      setError('Something went wrong, could not send OTP. Try again');
+    };
   };
 
   return (

@@ -7,6 +7,8 @@ export const authRoutes = [
   `${BASE_ROUTE}/register`,
 ]
 
+export const apiRoute = `/api`;
+
 export const publicRoutes = [
   `${BASE_ROUTE}`,
 ]
