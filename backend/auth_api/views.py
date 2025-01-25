@@ -995,8 +995,14 @@ class SocialAuthView(APIView):
             strategy = load_strategy(request)
             backend = load_backend(strategy, provider, redirect_uri=None)
             user = backend.do_auth(token)
-
-            if user and user.is_active:
+            
+            if isinstance(user, Response):
+                return user
+            
+            if not user.is_active:
+                return Response({"error": "User is deactivated. Contact an admin."}, status=400)
+            
+            if user:
                 # Generate JWT tokens for the authenticated user
                 refresh = RefreshToken.for_user(user)
                 access_token_expiry = (now() + timedelta(minutes=5)).isoformat()

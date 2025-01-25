@@ -87,10 +87,10 @@ export default function LoginForm() {
       <div className={styles.socialLogin}>
         <GoogleLoginButton />
         <FacebookLoginButton />
-        <InstagramLoginButton />
-        <LinkedInLoginButton />
+        {/* <InstagramLoginButton /> */}
+        {/* <TwitterLoginButton /> */}
+        {/* <LinkedInLoginButton /> */}
         <GitHubLoginButton />
-        <TwitterLoginButton />
       </div>
     </form>
   );

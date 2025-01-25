@@ -14,17 +14,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
-    // FacebookProvider({
-    //   clientId: process.env.FACEBOOK_CLIENT_ID,
-    //   clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-    // }),
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: 'email,public_profile' // request email and public profile
+        }
+      }
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    }),
     // LinkedInProvider({
     //   clientId: process.env.LINKEDIN_CLIENT_ID,
     //   clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
-    // }),
-    // GitHubProvider({
-    //   clientId: process.env.GITHUB_CLIENT_ID,
-    //   clientSecret: process.env.GITHUB_CLIENT_SECRET,
     // }),
     // TwitterProvider({
     //   clientId: process.env.TWITTER_CLIENT_ID,
@@ -36,17 +41,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // }),
   ],
   callbacks: {
-    async signIn({ account }) {
+    async signIn({ user, account, profile, email, credentials }) {
+      // console.log('account', account);
+      // console.log('user', user);
+      // console.log('profile', profile);
+      // console.log('email', email);
+      // console.log('credentials', credentials);
       let result;
       if (account.provider === 'google') {
         result = await socialLoginAction("google-oauth2", account.access_token);
+        console.log('result', result);
+      };
+
+      if (account.provider === 'facebook') {
+        result = await socialLoginAction("facebook", account.access_token);
+        console.log('result', result);
+      };
+
+      if (account.provider === 'github') {
+        result = await socialLoginAction("github", account.access_token);
+        console.log('result', result);
       };
       
-      if (result.success) {
-        return true;
-      } else {
-        return false;
-      };
+      return true;
+      // should be false if result fails to return success
     },
     async jwt({ token, account }) {
       if (account) {

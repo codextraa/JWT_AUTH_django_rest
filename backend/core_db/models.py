@@ -63,11 +63,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('github', 'GitHub'),
     ]
     email = models.EmailField(max_length=255, unique=True)
-    username = models.CharField(max_length=128, unique=True, blank=True, null=True)
+    username = models.CharField(max_length=255, unique=True, blank=True, null=True)
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
     phone_number = PhoneNumberField(unique=True, blank=True, null=True)
-    profile_img = models.ImageField(upload_to="profile_images/", blank=True, null=True)
+    profile_img = models.ImageField(upload_to="profile_images/", blank=True, null=True, max_length=500)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
