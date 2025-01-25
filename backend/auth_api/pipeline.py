@@ -22,6 +22,9 @@ def user_creation(backend, user, response, *args, **kwargs):
                 return found_user
             elif found_user.auth_provider == backend.name:
                 return found_user
+            elif found_user.auth_provider == 'email':
+                return Response({"error": f"User with this email already created using password. Please login using password."}, 
+                                status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({"error": f"User with this email already created using {found_user.auth_provider}. Please login using {found_user.auth_provider}."}, 
                                 status=status.HTTP_400_BAD_REQUEST)

@@ -1,8 +1,9 @@
 'use client';
 
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { useFormStatus } from 'react-dom';
+import { logoutAction } from "@/actions/authActions";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
@@ -66,6 +67,33 @@ function SocialLoginButton({ provider, icon }) {
     </button>
   );
 };
+
+export const LogOutButton = () => {
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleClick = async () => {
+    setIsLoading(true)
+    try {
+      await logoutAction();
+      await signOut();
+    } catch (error) {
+      console.error("Error during social login:", error)
+    }
+    setIsLoading(false)
+  };
+
+  return (
+    <button
+      type="submit"
+      disabled={isLoading}
+      className={baseStyles.loginButton}
+      onClick={handleClick}
+    >
+      <span>{isLoading ? `Logging out...` : `Logout`}</span>
+    </button>
+  );
+};
+
 
 export function GoogleLoginButton() {
   return ( <SocialLoginButton 

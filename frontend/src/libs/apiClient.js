@@ -11,54 +11,61 @@ export class ApiClient {
 
   async handleErrors(response) {
     const contentType = response.headers.get("Content-Type") || "";
+    const clonedResponse = response.clone();
 
-  if (response.ok) {
-    if (response.status === 204) {
-      return null; // No content
-    }
+    if (response.ok) {
+      if (response.status === 204) {
+        return null; // No content
+      }
 
-    if (contentType.includes("application/json")) {
-      return await response.json(); // Parse JSON response
-    }
-
-    return { data: await response.text() }; // Non-JSON response
-  }
-
-  if (response.status >= 400) {
-    if (response.status === 401) {
-      return { error: "Unauthorized. Please refresh the page. If this persists, login again." };
-    }
-
-    if (response.status === 429) {
       if (contentType.includes("application/json")) {
-        const errorResponse = await response.json();
-        const errorMessage = errorResponse.errors;
+        return await response.json(); // Parse JSON response
+      }
 
+      return { data: await response.text() }; // Non-JSON response
+    }
+
+    if (response.status >= 400) {
+      if (response.status === 401) {
+        return { error: "Unauthorized. Please refresh the page. If this persists, login again." };
+      }
+
+      if (response.status === 429) {
+        if (contentType.includes("application/json")) {
+          const errorResponse = await response.json();
+          const errorMessage = errorResponse.errors;
+
+          try {
+            const match = errorMessage.match(/(\d+) second(s)?/);
+            return { error: `Validation already sent. Please try again in ${match[1]} seconds.` };
+          } catch (error) {
+            return { error: `Validation already sent. Please try again.` };
+          }
+        }
+      }
+
+      if (contentType.includes("application/json")) {
         try {
-          const match = errorMessage.match(/(\d+) second(s)?/);
-          return { error: `Validation already sent. Please try again in ${match[1]} seconds.` };
-        } catch (error) {
-          return { error: `Validation already sent. Please try again.` };
+          const errorData = await response.json();
+          if (errorData.errors) {
+            return { error: errorData.errors }; // Return specific error
+          }
+        } catch (e) {
+          return { error: "Unexpected error occurred." };
         }
       }
-    }
 
-    if (contentType.includes("application/json")) {
       try {
-        const errorData = await response.json();
-        if (errorData.errors) {
-          return { error: errorData.errors }; // Return specific error
-        }
-      } catch (e) {
-        return { error: "Unexpected error occurred." };
+        // Non-JSON error response
+        const errorText = await clonedResponse.text();
+    
+        // Handle the error message here
+        return { error: errorText || 'Unexpected error occurred. Something went wrong' };
+      } catch (err) {
+        console.error('Error while reading the error response body:', err);
+        return { error: 'Unexpected error occurred. Something went wrong' };
       }
     }
-
-    // Non-JSON error response
-    const errorText = await response.text();
-    // console.log(errorText);
-    return { error: `Unexpected error occured. Something went wrong` };
-  }
 
     if (response.status >= 500) {
       return { error: "Server error" }; // Server-side error

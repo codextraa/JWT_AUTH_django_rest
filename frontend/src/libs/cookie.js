@@ -68,7 +68,7 @@ export const updateSessionCookie = async (req) => {
     return await setSessionCookie(res);
   } else {
     await deleteSessionCookie();
-    await deleteCSRFCookie();
+    // await deleteCSRFCookie();
     return false;
   };
 };
@@ -77,13 +77,14 @@ export const deleteSessionCookie = async () => {
   const cookieStore = await cookies();
 
   if (cookieStore.has('session')) {
+    console.log('deleting session cookie 2');
     cookieStore.set('session', '', {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 0, // Expire the cookie immediately
       path: BASE_ROUTE, // Ensure the cookie is deleted for all paths
       sameSite: 'lax',
-    })
+    });
   };
 };
 
@@ -109,6 +110,10 @@ export const getCSRFTokenFromSession = async () => {
     return null; // No session cookie found
   };
 
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
+  };
+
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.csrf_token || null; // Return user_id if present
@@ -124,6 +129,10 @@ export const getCSRFTokenExpiryFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
+  };
+
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
   };
 
   try {
@@ -143,6 +152,10 @@ export const getUserIdFromSession = async () => {
     return null; // No session cookie found
   };
 
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
+  };
+
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.user_id || null; // Return user_id if present
@@ -158,6 +171,10 @@ export const getUserRoleFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
+  };
+
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
   };
 
   try {
@@ -176,9 +193,34 @@ export const getAccessTokenFromSession = async () =>  {
     return null; // No session cookie found
   };
 
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
+  };
+
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
     return decryptedData?.access_token || null; // Return access_token if present
+  } catch (error) {
+    console.error('Error decrypting session data:', error);
+    return null; // Return null if decryption fails
+  };
+};
+
+export const getRefreshTokenFromSession = async () =>  {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+
+  if (!sessionCookie) {
+    return null; // No session cookie found
+  };
+
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
+  };
+
+  try {
+    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
+    return decryptedData?.refresh_token || null; // Return refresh_token if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
@@ -191,6 +233,10 @@ export const getAccessTokenExpiryFromSession = async () =>  {
 
   if (!sessionCookie) {
     return null; // No session cookie found
+  };
+
+  if (!sessionCookie.value) {
+    return null; // No session cookie value found
   };
 
   try {
@@ -211,23 +257,6 @@ export const getAccessTokenExpiryFromSession = async () =>  {
     };
 
     return false; // Return access_token_expiry if present
-  } catch (error) {
-    console.error('Error decrypting session data:', error);
-    return null; // Return null if decryption fails
-  };
-};
-
-export const getRefreshTokenFromSession = async () =>  {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
-
-  if (!sessionCookie) {
-    return null; // No session cookie found
-  };
-
-  try {
-    const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
-    return decryptedData?.refresh_token || null; // Return refresh_token if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails

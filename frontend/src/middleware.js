@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   getAccessTokenExpiryFromSession,
-  getCSRFTokenExpiryFromSession,
   updateSessionCookie,
-  setCSRFCookie
+  // getCSRFTokenExpiryFromSession,
+  // setCSRFCookie
 } from "@/libs/cookie";
 import {
   BASE_ROUTE,
@@ -17,7 +17,6 @@ import {
 export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
-  console.log('pathname', pathname);
   
   const isPublicRoute = publicRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith(apiRoute);
@@ -34,7 +33,6 @@ export async function middleware(req) {
   };
 
   let isLoggedIn = await getAccessTokenExpiryFromSession();
-  console.log('isLoggedIn', isLoggedIn);
   let updatedCookie;
 
   if (!isLoggedIn) {

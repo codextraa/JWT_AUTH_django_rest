@@ -68,6 +68,9 @@ def check_user_validity(email):
     if not user:
         return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
     
+    if user.auth_provider != 'email':
+        return Response({"error": f"User with this email already created using {user.auth_provider}. Please login using {user.auth_provider}."}, status=status.HTTP_400_BAD_REQUEST)
+    
     # Check if user is active
     if not user.is_active:
         return Response({"error": "User is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)

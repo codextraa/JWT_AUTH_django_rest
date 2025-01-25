@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import FacebookProvider from 'next-auth/providers/facebook';
-import LinkedInProvider from 'next-auth/providers/linkedin';
 import GitHubProvider from 'next-auth/providers/github';
-import TwitterProvider from 'next-auth/providers/twitter';
-import InstagramProvider from 'next-auth/providers/instagram';
+// import LinkedInProvider from 'next-auth/providers/linkedin';
+// import TwitterProvider from 'next-auth/providers/twitter';
+// import InstagramProvider from 'next-auth/providers/instagram';
 import { socialLoginAction } from "./actions/authActions";
  
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -50,17 +50,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       let result;
       if (account.provider === 'google') {
         result = await socialLoginAction("google-oauth2", account.access_token);
-        console.log('result', result);
+        // console.log('result', result); // For frontend debugging to know where to put the error given by backend
+        // this line should be included after every result variable to understand
       };
 
       if (account.provider === 'facebook') {
         result = await socialLoginAction("facebook", account.access_token);
-        console.log('result', result);
       };
 
       if (account.provider === 'github') {
         result = await socialLoginAction("github", account.access_token);
-        console.log('result', result);
       };
       
       return true;
@@ -72,5 +71,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       };
       return token;
     },
+    // Don't add anything else as the session is set by setSessionCookie using backend
   },
 });

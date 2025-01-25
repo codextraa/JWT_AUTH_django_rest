@@ -1,4 +1,5 @@
 // import { redirect } from "next/dist/server/api-utils";
+import { cookies } from "next/headers";
 import { ApiClient } from "./apiClient";
 import { 
   getRefreshTokenFromSession,
@@ -36,10 +37,7 @@ export const logout = async () => {
 
   if (refreshToken) {
     await apiClient.post('/logout/', { refresh: refreshToken });
-  }
-
-  await deleteSessionCookie();
-  // redirect('/login');
+  };
 };
 
 export const getUsers = async () => {

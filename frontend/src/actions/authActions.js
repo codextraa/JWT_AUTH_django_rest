@@ -1,8 +1,18 @@
 'use server';
 
-import { signIn } from "next-auth/react"
-import { login, getToken, resendOtp, socialOauth} from '@/libs/api';
-import { setSessionCookie } from '@/libs/cookie';
+import { 
+  login, 
+  getToken, 
+  resendOtp, 
+  socialOauth, 
+  logout
+} from '@/libs/api';
+import { 
+  deleteSessionCookie,
+  setSessionCookie,
+} from '@/libs/cookie';
+import { BASE_ROUTE } from '@/route';
+import { redirect } from 'next/navigation';
 
 export async function loginAction(formData) {
   const email = formData.get('email');
@@ -81,12 +91,27 @@ export async function socialLoginAction(provider, accessToken) {
       && response.access_token_expiry) {
       await setSessionCookie(response);
       // Return success response if OTP verification is successful
-      return { success: 'OTP verified successfully' };
+      return { success: 'Login successful' };
     } else {
-      return { error: result.error || "Backend authentication failed" }
+      return { error: response.error || "Backend authentication failed" }
     };
   } catch (error) {
     console.error(error)
     return { error: error.message || "An error occurred during login." }
+  };
+};
+
+export const logoutAction = async() => {
+  try {
+    // Logout from the backend
+    await logout();
+    // Delete the CSRF cookie
+    // await deleteCSRFCookie();
+    // Delete the session cookie
+    await deleteSessionCookie();
+    redirect(`${BASE_ROUTE}/login`);
+  } catch (error) {
+    // Throw the NEXT REDIRECT error (otherwise it won't work)
+    throw error;
   };
 };
