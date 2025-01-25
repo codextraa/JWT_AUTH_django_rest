@@ -18,6 +18,7 @@ urlpatterns = [
     path('logout/', views.LogoutView.as_view(), name='logout'),
     path('resend-otp/', views.ResendOtpView.as_view(), name='resend-otp'),
     path('verify-email/', views.EmailVerifyView.as_view(), name='email-verify'),
+    path('verify-phone/', views.PhoneVerifyView.as_view(), name='phone-verify'),
     path('reset-password/', views.PasswordResetView.as_view(), name='password-reset'),
     path('token/', views.TokenView.as_view(), name='token'),
     path('token/refresh/', views.RefreshTokenView.as_view(), name='token-refresh'),

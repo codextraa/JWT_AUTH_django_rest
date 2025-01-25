@@ -149,6 +149,7 @@ class UserSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
+        # Need to check this
         """Create and return a user with encrypted password."""
         profile_img = validated_data.pop('profile_img', None)
         
@@ -158,6 +159,17 @@ class UserSerializer(serializers.ModelSerializer):
             validated_data['profile_img'] = default_image_path
 
         return get_user_model().objects.create_user(**validated_data)
+    
+    def update(self, instance, validated_data):
+        """Update and return an existing user"""
+        updated = super().update(instance, validated_data)
+        
+        if validated_data.get('phone_number'):
+            instance.is_phone_verified = False
+            instance.save()
+            
+        return updated
+        
     
 class UserImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -196,7 +208,10 @@ class TokenRequestSerializer(serializers.Serializer):
     user_id = serializers.CharField(required=True)
     otp = serializers.CharField(required=True)
     
-class PasswordResetRequestSerializer(serializers.Serializer):
+class PhoneVerificationSerializer(serializers.Serializer):
+    otp = serializers.CharField(required=True)
+    
+class VerificationThroughEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     
 class InputPasswordResetSerializer(serializers.Serializer):

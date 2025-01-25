@@ -23,7 +23,8 @@ from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
 from .utils import (
     EmailOtp,
-    EmailLink
+    EmailLink,
+    PhoneOtp
 )
 from .serializers import (
     UserSerializer,
@@ -35,8 +36,9 @@ from .serializers import (
     LogoutSerializer,
     ResendOtpSerializer,
     TokenRequestSerializer,
+    PhoneVerificationSerializer,
     PasswordResetSerializer,
-    PasswordResetRequestSerializer,
+    VerificationThroughEmailSerializer,
     InputPasswordResetSerializer,
     SocialOAuthSerializer
 )
@@ -164,7 +166,7 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'otp'
+    throttle_scope = 'email_otp'
     
     def check_throttles(self, request):
         """
@@ -233,7 +235,7 @@ class ResendOtpView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'otp'
+    throttle_scope = 'email_otp'
     
     def check_throttles(self, request):
         """
@@ -415,6 +417,20 @@ class EmailVerifyView(APIView):
     """View for verifying user's email address after registration."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_verify"
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = check_throttle_duration(self, request)
+                
+        cached_email = cache.get(f"email_{request.data.get('email')}")
+
+        if throttle_durations and cached_email and request.method == "POST":
+            start_throttle(self, throttle_durations, request)
     
     @extend_schema(
         description="This endpoint verifies the user's email address using a token and expiry time sent during registration.",
@@ -483,10 +499,146 @@ class EmailVerifyView(APIView):
         
         return Response({"success": "Email verified successfully"}, status=status.HTTP_200_OK)
     
+    @extend_schema(
+        request=VerificationThroughEmailSerializer,  # Use the VerificationThroughEmailSerializer for email input
+        responses={
+            201: OpenApiResponse(
+                description="Verification link sent successfully",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "string",
+                            "example": "Verification link sent. Please verify your email to activate your account.",
+                        }
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid email address or user not found",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "examples": [
+                                "Invalid email address",
+                                "User not found",
+                            ],
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Failed to send email verification link",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "example": "Failed to send email verification link.",
+                        }
+                    },
+                },
+            ),
+        },
+        description="Sends an email verification link to the user with a token.",
+        operation_id="send_email_verification_link"
+    )
+    def post(self, request, *args, **kwargs):
+        email = request.data.get("email")
+        
+        user = check_user_validity(email)
+        
+        if isinstance(user, Response):
+            return user
+        
+        email_sent = EmailLink.send_email_link(email)
+        
+        if not email_sent:
+            return Response(
+                {"error": "Failed to send email verification link."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        cache.set(f"email_{email}", email, timeout=60) # Cache email for 10 minutes
+        
+        return Response(
+            {"success": "Verification link sent. Please verify your email to activate your account."},
+            status=status.HTTP_201_CREATED
+        )
+    
+class PhoneVerifyView(APIView):
+    """View for verifying user's phone number after registration."""
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [ViewRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'phone_otp'
+    
+    def check_throttles(self, request):
+        """
+        Check if request should be throttled.
+        Raises an appropriate exception if the request is throttled.
+        """
+        throttle_durations = check_throttle_duration(self, request)
+
+        if throttle_durations and request.method == "POST":
+            start_throttle(self, throttle_durations, request)
+    
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(description="OTP sent successfully"),
+            400: OpenApiResponse(description="Failed to send OTP"),
+        },
+        operation_id="send_otp",
+        description="Sends OTP to the user's phone number."
+    )
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        email = user.email
+        phone = user.phone_number
+        
+        otp_sent = PhoneOtp.send_otp(email, str(phone))
+        
+        if otp_sent:
+            return Response({"success": "OTP sent successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @extend_schema(
+        request=PhoneVerificationSerializer,  # Use the PhoneVerificationSerializer for OTP input
+        responses={
+            200: OpenApiResponse(description="Phone verified successfully"),
+            400: OpenApiResponse(description="Invalid OTP"),
+        },
+        operation_id="verify_otp",
+        description="Verifies the OTP provided by the user."
+    )  
+    def patch(self, request, *args, **kwargs):
+        otp = request.data.get("otp")
+        
+        if not otp:
+            return Response({"error": "OTP is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        phone_number = user.phone_number
+        
+        otp_verified = PhoneOtp.verify_otp(phone_number, otp)
+        
+        if otp_verified:
+            user.is_phone_verified = True
+            user.save()
+            return Response({"success": "Phone verified successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+    
 class PasswordResetView(APIView):
     """View for resetting user's password."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
     
     def check_throttles(self, request):
         """
@@ -542,7 +694,7 @@ class PasswordResetView(APIView):
     @extend_schema(
         operation_id="password_reset_request",
         description="Send a password reset link to the user's email address if it is verified and active.",
-        request=PasswordResetRequestSerializer,
+        request=VerificationThroughEmailSerializer,
         responses={
             201: OpenApiResponse(
                 description="Password reset link sent successfully.",
@@ -647,7 +799,7 @@ class UserViewSet(ModelViewSet):
     serializer_class = UserSerializer # User Serializer initialized
     authentication_classes = [JWTAuthentication] # Using jwtoken
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'user_view'
+    throttle_scope = 'email_verify'
     renderer_classes = [ViewRenderer]
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilterSerializer

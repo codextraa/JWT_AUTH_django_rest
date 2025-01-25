@@ -58,6 +58,8 @@ else:
 
 # Application definition
 
+APP_NAME = os.getenv("APP_NAME")
+
 INSTALLED_APPS = [
     'core_db',
     'auth_api',
@@ -68,6 +70,7 @@ INSTALLED_APPS = [
     'social_django',
     'drf_spectacular',
     'phonenumber_field',
+    'phone_verify',
     
     'django_filters',
     'django.contrib.admin',
@@ -220,6 +223,12 @@ SOCIAL_AUTH_GITHUB_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 # SOCIAL_AUTH_LINKEDIN_KEY = '<LINKEDIN_CLIENT_ID>' # LinkedIn page required
 # SOCIAL_AUTH_LINKEDIN_SECRET = '<LINKEDIN_CLIENT_SECRET>'
 
+# Twilio Settings
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+
 # REST Framework Settings
 
 # Never give comma after drf_spectacular.openapi.AutoSchema
@@ -241,9 +250,10 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'otp': '1/min',
-        'user_view': '1/min',
-        'dj_rest_auth': '1000000/day',
+        'email_otp': '1/min',
+        'email_verify': '1/min',
+        'password_reset': '1/min',
+        'phone_otp': '1/min',
     },
 }
 
@@ -253,7 +263,8 @@ REST_USE_JWT = True
 
 SIMPLE_JWT = {
     # 10 second window for access_token_expiry setup
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5, seconds=10),
+    # 'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5, seconds=10),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     
      # Set the RS256 algorithm
