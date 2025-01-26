@@ -7,7 +7,7 @@ import { loginAction } from '@/actions/authActions';
 import { BASE_ROUTE } from '@/route';
 import { encrypt } from '@/libs/session';
 import styles from './LoginForm.module.css';
-import { 
+import {
   LoginButton,
   GoogleLoginButton,
   FacebookLoginButton,
@@ -21,7 +21,8 @@ export default function LoginForm() {
   const router = useRouter();
   const [otp, setOtp] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
   useEffect(() => {
     const otpRequired = sessionStorage.getItem('otpRequired');
@@ -36,13 +37,33 @@ export default function LoginForm() {
     }
   }, []);
 
+  useEffect(() => {
+    // Dynamically load reCAPTCHA script
+    const script = document.createElement('script');
+    script.src = 'https://www.google.com/recaptcha/api.js';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+
+    window.handleRecaptchaCallback = (token) => {
+      if (token) {
+        setIsRecaptchaVerified(true);
+      } else {
+        setIsRecaptchaVerified(false);
+      }
+    };
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
   const handleSubmit = async (formData) => {
     const result = await loginAction(formData);
     if (result.error) {
       setError(result.error);
-      setSuccessMessage('');
+      setSuccess('');
     } else if (result.success && result.otp) {
-      // Store OTP status in sessionStorage
       setOtp(true);
       try {
         const userId = await encrypt(result.user_id);
@@ -50,48 +71,56 @@ export default function LoginForm() {
       } catch (error) {
         console.log('Error encrypting user_id:', error);
         setError('Something went wrong. Try again');
-        return
-      };
-      setSuccessMessage(result.success);
+        return;
+      }
+      setSuccess(result.success);
       setError('');
       sessionStorage.setItem('otpRequired', 'true');
       sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
       router.push(`${BASE_ROUTE}/otp`);
     } else {
       setError('Something went wrong, could not send OTP. Try again');
-    };
+    }
   };
 
   return (
     <form className={styles.form} action={handleSubmit}>
       {error && <p className={styles.error}>{error}</p>}
-      {successMessage && <p className={styles.success}>{successMessage}</p>}
+      {success && <p className={styles.success}>{success}</p>}
       <div className={styles.inputGroup}>
         <label htmlFor="email">Email:</label>
-        <input type="email" id="email" name="email"/>
+        <input type="email" id="email" name="email" />
       </div>
       <div className={styles.inputGroup}>
         <label htmlFor="password">Password:</label>
-        <input type="password" id="password" name="password"/>
+        <input type="password" id="password" name="password" />
       </div>
-      <LoginButton />
+      <div
+        className="g-recaptcha"
+        data-sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+        data-callback="handleRecaptchaCallback"
+      ></div>
+      {console.log('normal', isRecaptchaVerified)}
+      <LoginButton disabled={!isRecaptchaVerified} />
       <div className={styles.actionLinks}>
         <Link href={`${BASE_ROUTE}/forgot-password`} className={styles.forgotPassword}>
           Forgot Password?
         </Link>
-        {otp && 
-        <Link href={`${BASE_ROUTE}/otp`} className={styles.verifyOtp}>
-          Verify OTP
-        </Link>}
+        {otp && (
+          <Link href={`${BASE_ROUTE}/otp`} className={styles.verifyOtp}>
+            Verify OTP
+          </Link>
+        )}
       </div>
       <div className={styles.socialLogin}>
-        <GoogleLoginButton />
-        <FacebookLoginButton />
+        {console.log('google', isRecaptchaVerified)}
+        <GoogleLoginButton isDisabled={!isRecaptchaVerified} />
+        <FacebookLoginButton isDisabled={!isRecaptchaVerified} />
+        <GitHubLoginButton isDisabled={!isRecaptchaVerified} />
         {/* <InstagramLoginButton /> */}
         {/* <TwitterLoginButton /> */}
         {/* <LinkedInLoginButton /> */}
-        <GitHubLoginButton />
       </div>
     </form>
   );
-};
+}

@@ -7,12 +7,16 @@ import { logoutAction } from "@/actions/authActions";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
-export const LoginButton = () => {
+export const LoginButton = ({ disabled }) => {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" name='action' value='login' disabled={pending} className={baseStyles.loginButton}>
-      {pending ? 'Logging in...' : 'Login'}
+    <button 
+    type="submit" 
+    disabled={disabled || pending} 
+    className={baseStyles.loginButton}
+    >
+      {pending ? 'Logging in...' : disabled ? 'Login' : 'Login'}
     </button>
   );
 };
@@ -42,8 +46,9 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
-function SocialLoginButton({ provider, icon }) {
+function SocialLoginButton({ provider, isDisabled, icon }) {
   const [isLoading, setIsLoading] = useState(false)
+  const disabled = isDisabled.isDisabled
 
   const handleClick = async () => {
     setIsLoading(true)
@@ -57,13 +62,14 @@ function SocialLoginButton({ provider, icon }) {
 
   return (
     <button
-      type="button"
-      disabled={isLoading}
-      className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
-      onClick={handleClick}
+    type="button"
+    disabled={disabled || isLoading}
+    className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
+    onClick={handleClick}
     >
+      {/* {console.log(icon)} Find out what this is*/} 
       {icon}
-      <span>{isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}</span>
+      <span>{isLoading ? `Logging in with ${provider}...` : disabled ? `Login with ${provider}` : `Login with ${provider}`}</span>
     </button>
   );
 };
@@ -95,53 +101,57 @@ export const LogOutButton = () => {
 };
 
 
-export function GoogleLoginButton() {
+export function GoogleLoginButton( isDisabled ) {
   return ( <SocialLoginButton 
-  provider="Google" 
-  icon={<i className="fab fa-google"></i>}
+    provider="Google" 
+    isDisabled={isDisabled}
+    icon={<i className="fab fa-google"></i>}
   />
   );
 };
 
-export function FacebookLoginButton() {
+export function FacebookLoginButton( isDisabled ) {
   return (
     <SocialLoginButton 
     provider="Facebook" 
+    isDisabled={isDisabled}
     icon={<i className="fab fa-facebook-f"></i>} 
   />
   );
 };
 
-export function InstagramLoginButton() {
-  return (
-    <SocialLoginButton 
-    provider="Instagram" 
-    icon={<i className="fab fa-instagram"></i>} 
-  />
-  );
-};
-
-export function TwitterLoginButton() {
+export function GitHubLoginButton( isDisabled ) {
   return ( <SocialLoginButton 
-  provider="Twitter" 
-  icon={<i className="fab fa-twitter"></i>} 
+    provider="GitHub" 
+    isDisabled={isDisabled}
+    icon={<i className="fab fa-github"></i>} 
   />
   );
 };
 
-export function LinkedInLoginButton() {
-  return (
-    <SocialLoginButton 
-    provider="LinkedIn" 
-    icon={<i className="fab fa-linkedin-in"></i>} 
-  />
-  );
-};
 
-export function GitHubLoginButton() {
-  return ( <SocialLoginButton 
-  provider="GitHub" 
-  icon={<i className="fab fa-github"></i>} 
-  />
-  );
-};
+// export function InstagramLoginButton() {
+//   return (
+//     <SocialLoginButton 
+//     provider="Instagram" 
+//     icon={<i className="fab fa-instagram"></i>} 
+//   />
+//   );
+// };
+
+// export function TwitterLoginButton() {
+//   return ( <SocialLoginButton 
+//   provider="Twitter" 
+//   icon={<i className="fab fa-twitter"></i>} 
+//   />
+//   );
+// };
+
+// export function LinkedInLoginButton() {
+//   return (
+//     <SocialLoginButton 
+//     provider="LinkedIn" 
+//     icon={<i className="fab fa-linkedin-in"></i>} 
+//   />
+//   );
+// };
