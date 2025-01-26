@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loginAction } from '@/actions/authActions';
+import { loginAction, recaptchaVerifyAction } from '@/actions/authActions';
 import { BASE_ROUTE } from '@/route';
 import { encrypt } from '@/libs/session';
 import styles from './LoginForm.module.css';
@@ -11,9 +11,9 @@ import {
   LoginButton,
   GoogleLoginButton,
   FacebookLoginButton,
-  InstagramLoginButton,
-  TwitterLoginButton,
-  LinkedInLoginButton,
+  // InstagramLoginButton,
+  // TwitterLoginButton,
+  // LinkedInLoginButton,
   GitHubLoginButton,
 } from '../Buttons/Button';
 
@@ -59,6 +59,20 @@ export default function LoginForm() {
   }, []);
 
   const handleSubmit = async (formData) => {
+    const recaptchaResponse = grecaptcha.getResponse();
+
+    if (!recaptchaResponse) {
+      setError('Please verify you are not a robot.');
+      return;
+    };
+
+    const recaptchaValidRes = await recaptchaVerifyAction(recaptchaResponse);
+
+    if (recaptchaValidRes.error) {
+      setError(recaptchaValidRes.error);
+      return;
+    };
+
     const result = await loginAction(formData);
     if (result.error) {
       setError(result.error);
@@ -69,7 +83,7 @@ export default function LoginForm() {
         const userId = await encrypt(result.user_id);
         sessionStorage.setItem('user_id', userId);
       } catch (error) {
-        console.log('Error encrypting user_id:', error);
+        console.error('Error encrypting user_id:', error);
         setError('Something went wrong. Try again');
         return;
       }
@@ -100,7 +114,6 @@ export default function LoginForm() {
         data-sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
         data-callback="handleRecaptchaCallback"
       ></div>
-      {console.log('normal', isRecaptchaVerified)}
       <LoginButton disabled={!isRecaptchaVerified} />
       <div className={styles.actionLinks}>
         <Link href={`${BASE_ROUTE}/forgot-password`} className={styles.forgotPassword}>
@@ -113,14 +126,13 @@ export default function LoginForm() {
         )}
       </div>
       <div className={styles.socialLogin}>
-        {console.log('google', isRecaptchaVerified)}
-        <GoogleLoginButton isDisabled={!isRecaptchaVerified} />
-        <FacebookLoginButton isDisabled={!isRecaptchaVerified} />
-        <GitHubLoginButton isDisabled={!isRecaptchaVerified} />
+        <GoogleLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
+        <FacebookLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
+        <GitHubLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
         {/* <InstagramLoginButton /> */}
         {/* <TwitterLoginButton /> */}
         {/* <LinkedInLoginButton /> */}
       </div>
     </form>
   );
-}
+};

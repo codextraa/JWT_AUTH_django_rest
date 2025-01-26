@@ -14,6 +14,7 @@ router.register(r'users', views.UserViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('get-csrf-token/', views.CSRFTokenView.as_view(), name='csrf-token'),
+    path('recaptcha-verify/', views.RecaptchaValidationView.as_view(), name='recaptcha-verify'),
     path('login/', views.LoginView.as_view(), name='login'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
     path('resend-otp/', views.ResendOtpView.as_view(), name='resend-otp'),

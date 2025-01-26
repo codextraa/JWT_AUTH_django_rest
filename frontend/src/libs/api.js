@@ -16,6 +16,10 @@ export const getCSRFToken = async () => {
   return apiClient.get('/get-csrf-token/');
 };
 
+export const recaptchaVerify = async (data) => {
+  return apiClient.post('/recaptcha-verify/', data);
+};
+
 export const login = async (data) => {
   return apiClient.post('/login/', data);
 };
@@ -40,10 +44,10 @@ export const logout = async () => {
   };
 };
 
+export const socialOauth = async (data) => {
+  return apiClient.post('/social-auth/', data);
+};
+
 export const getUsers = async () => {
   return apiClient.get('/users/');
 };
-
-export const socialOauth = async (data) => {
-  return apiClient.post('/social-auth/', data);
-}

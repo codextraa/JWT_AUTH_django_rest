@@ -1,4 +1,5 @@
 """Views for Auth API."""
+import requests, json
 from datetime import datetime, timezone, timedelta
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
@@ -13,6 +14,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
@@ -160,6 +162,32 @@ class CSRFTokenView(APIView):
         csrf_token = get_token(request)
         csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1)
         return Response({"csrf_token": csrf_token, "csrf_token_expiry": csrf_token_expiry.isoformat()}, status=status.HTTP_200_OK)
+    
+class RecaptchaValidationView(APIView):
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            recaptcha_token = request.data.get('recaptcha_token')
+            
+            recaptcha_response = requests.post(
+                'https://www.google.com/recaptcha/api/siteverify',
+                data={
+                    'secret': settings.RECAPTCHA_SECRET_KEY,
+                    'response': recaptcha_token
+                }
+            )
+            result = recaptcha_response.json()
+            
+            if result.get('success'):
+                return Response({'success': 'reCAPTCHA validation successful.'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Invalid reCAPTCHA token.'}, status=status.HTTP_400_BAD_REQUEST)
+        except json.JSONDecodeError:
+            return Response({'error': 'Invalid JSON.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LoginView(APIView):
     """Login to get an otp."""

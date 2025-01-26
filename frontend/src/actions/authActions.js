@@ -1,6 +1,7 @@
 'use server';
 
-import { 
+import {
+  recaptchaVerify,
   login, 
   getToken, 
   resendOtp, 
@@ -13,6 +14,21 @@ import {
 } from '@/libs/cookie';
 import { BASE_ROUTE } from '@/route';
 import { redirect } from 'next/navigation';
+
+
+export async function recaptchaVerifyAction(token) {
+  const data = {
+    recaptcha_token: token
+  };
+
+  try {
+    return await recaptchaVerify(data);
+  } catch (error) {
+    // Handle any network or unexpected error
+    console.log(error);
+    return { error: error.message || 'An error occurred during reCAPTCHA verification.' };
+  };
+};
 
 export async function loginAction(formData) {
   const email = formData.get('email');

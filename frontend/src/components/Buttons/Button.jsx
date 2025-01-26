@@ -3,7 +3,7 @@
 import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { useFormStatus } from 'react-dom';
-import { logoutAction } from "@/actions/authActions";
+import { logoutAction, recaptchaVerifyAction } from "@/actions/authActions";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
@@ -21,6 +21,7 @@ export const LoginButton = ({ disabled }) => {
   );
 };
 
+// both the forms use same form status shouldn't be duplicated
 export const OtpVerifyButton = () => {
   const { pending } = useFormStatus();
 
@@ -46,30 +47,38 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
-function SocialLoginButton({ provider, isDisabled, icon }) {
-  const [isLoading, setIsLoading] = useState(false)
-  const disabled = isDisabled.isDisabled
+function SocialLoginButton({ provider, isDisabled, icon, setError }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const disabled = isDisabled;
 
   const handleClick = async () => {
-    setIsLoading(true)
-    try {
-      await signIn(provider, { redirectTo: "/jwt/login" })
-    } catch (error) {
-      console.error("Error during social login:", error)
+    setIsLoading(true);
+
+    if (disabled) { // doesn't work properly no error sent back
+      setError("Please verify you are not a robot."); // Pass error to parent
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false)
-  }
+
+    try {
+      await signIn(provider, { redirectTo: "/jwt/login" });
+    } catch (error) {
+      console.error("Error during social login:", error);
+      setError(`Error during ${provider} login. Please try again.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <button
-    type="button"
-    disabled={disabled || isLoading}
-    className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
-    onClick={handleClick}
+      type="button"
+      disabled={disabled || isLoading}
+      className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
+      onClick={handleClick}
     >
-      {/* {console.log(icon)} Find out what this is*/} 
       {icon}
-      <span>{isLoading ? `Logging in with ${provider}...` : disabled ? `Login with ${provider}` : `Login with ${provider}`}</span>
+      <span>{isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}</span>
     </button>
   );
 };
@@ -101,35 +110,41 @@ export const LogOutButton = () => {
 };
 
 
-export function GoogleLoginButton( isDisabled ) {
-  return ( <SocialLoginButton 
-    provider="Google" 
-    isDisabled={isDisabled}
-    icon={<i className="fab fa-google"></i>}
-  />
-  );
-};
-
-export function FacebookLoginButton( isDisabled ) {
+export function GoogleLoginButton({ isDisabled, setError }) {
   return (
-    <SocialLoginButton 
-    provider="Facebook" 
-    isDisabled={isDisabled}
-    icon={<i className="fab fa-facebook-f"></i>} 
-  />
+    <SocialLoginButton
+      provider="google"
+      isDisabled={isDisabled}
+      setError={setError}
+      icon={<i className="fab fa-google"></i>}
+    />
   );
 };
 
-export function GitHubLoginButton( isDisabled ) {
-  return ( <SocialLoginButton 
-    provider="GitHub" 
-    isDisabled={isDisabled}
-    icon={<i className="fab fa-github"></i>} 
-  />
+export function FacebookLoginButton({ isDisabled, setError }) {
+  return (
+    <SocialLoginButton
+      provider="facebook"
+      isDisabled={isDisabled}
+      setError={setError}
+      icon={<i className="fab fa-facebook-f"></i>}
+    />
+  );
+};
+
+export function GitHubLoginButton({ isDisabled, setError }) {
+  return (
+    <SocialLoginButton
+      provider="github"
+      isDisabled={isDisabled}
+      setError={setError}
+      icon={<i className="fab fa-github"></i>}
+    />
   );
 };
 
 
+// Needs fixing
 // export function InstagramLoginButton() {
 //   return (
 //     <SocialLoginButton 
