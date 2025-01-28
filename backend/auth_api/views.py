@@ -877,12 +877,23 @@ class UserViewSet(ModelViewSet):
         """Create new user and send email verification link."""
         current_user = self.request.user
         
-        if (('is_staff' in request.data or 'is_superuser' in request.data)
-            and not current_user.is_superuser):
+        if ('is_superuser' in request.data):
+            return Response(
+                {"error": "You do not have permission to create a superuser. Contact Developer."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        if ('is_staff' in request.data and not current_user.is_superuser):
             return Response(
                 {"error": "You do not have permission to create an admin user."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+            
+        password = request.data.get('password')
+        c_password = request.data.pop('c_password')
+        
+        if password != c_password:
+            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
             
         response = super().create(request, *args, **kwargs)
         
@@ -918,7 +929,7 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if 'password' in request.data:
+        if ('password' in request.data or 'c_password' in request.data):
             return Response(
                 {"error": "Password reset cannot be done without verification link."},
                 status=status.HTTP_403_FORBIDDEN

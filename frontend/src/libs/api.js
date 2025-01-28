@@ -84,11 +84,11 @@ export const getUser = async (id) => {
   return apiClient.get(`/users/${id}/`);
 };
 
-export const postUser = async (data) => {
+export const createUser = async (data) => {
   return apiClient.post('/users/', data);
 };
 
-export const patchUser = async (id, data) => {
+export const updateUser = async (id, data) => {
   return apiClient.patch(`/users/${id}/`, data);
 };
 

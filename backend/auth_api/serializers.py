@@ -22,8 +22,7 @@ def validate_password(password):
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         errors['special'] = 'Password must contain at least one special character.'
         
-    if errors:
-        raise serializers.ValidationError(errors)
+    return errors
     
 class PasswordResetSerializer(serializers.ModelSerializer):
     """Password Reset Serializer"""
@@ -57,7 +56,11 @@ class PasswordResetSerializer(serializers.ModelSerializer):
         if instance.check_password(password):
             raise serializers.ValidationError("New password cannot be the same as the old password.")
         
-        validate_password(password)
+        errors = validate_password(password)
+        
+        if errors:
+            raise serializers.ValidationError(errors)
+        
         instance.set_password(password)
         instance.save()
 
@@ -106,38 +109,39 @@ class UserSerializer(serializers.ModelSerializer):
         
     def _validate_email(self, email):
         """Email validation"""
-        errors = {}
-        
         if not self.instance and get_user_model().objects.filter(email=email).exists():
-            errors['email'] = 'Email is already in use. Please use a different email.'
-            
-        if errors:
-            raise serializers.ValidationError(errors)
+            return 'Email is already in use. Please use a different email.'
         
     def _validate_username(self, username):
         """Username validation"""
-        errors = {}
-        
         if not self.instance and get_user_model().objects.filter(username=username).exists():
-            errors['username'] = 'Username is already in use. Please use a different username.'
-            
-        if errors:
-            raise serializers.ValidationError(errors)
+            return 'Username is already in use. Please use a different username.'
         
     def validate(self, attrs):
         """Validate all data"""
+        errors = {}
         
         email = attrs.get('email')
         if email:
-            self._validate_email(email)
+            email_errors = self._validate_email(email)
             
         username = attrs.get('username')
         if username:
-            self._validate_username(username)
+            username_errors = self._validate_username(username)
         
         password = attrs.get('password')
         if password:
-            validate_password(password)
+            password_errors = validate_password(password)
+            
+        if email_errors:
+            errors['email'] = email_errors
+        if username_errors:
+            errors['username'] = username_errors
+        if password_errors:
+            errors['password'] = password_errors
+            
+        if errors:
+            raise serializers.ValidationError(errors)
         
         attrs = super().validate(attrs)
         

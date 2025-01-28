@@ -177,6 +177,16 @@ export function GitHubLoginButton({ isDisabled, setError }) {
   );
 };
 
+export function RegisterButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending} className={baseStyles.registerButton}>
+      {pending ? "Registering..." : "Register"}
+    </button>
+  );
+};
+
 
 // Needs fixing
 // export function InstagramLoginButton() {
