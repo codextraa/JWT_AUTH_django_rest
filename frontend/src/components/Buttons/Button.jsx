@@ -47,6 +47,16 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
+export const EmailVerificationRequestButton = () => {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending} className={baseStyles.resetPassButton}>
+      {pending ? "Sending..." : "Send Reset Link"}
+    </button>
+  )
+};
+
 export const PasswordResetButton = () => {
   const { pending } = useFormStatus();
 

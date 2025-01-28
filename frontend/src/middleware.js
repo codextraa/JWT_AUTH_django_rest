@@ -17,7 +17,6 @@ import {
 export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
-  console.log(`Pathname: ${pathname}`);
   
   const isPublicRoute = publicRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith(apiRoute);

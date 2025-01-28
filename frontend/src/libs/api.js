@@ -1,9 +1,6 @@
-// import { redirect } from "next/dist/server/api-utils";
-import { cookies } from "next/headers";
 import { ApiClient } from "./apiClient";
 import { 
   getRefreshTokenFromSession,
-  deleteSessionCookie
 } from "./cookie";
 
 
@@ -36,21 +33,35 @@ export const refreshToken = async (refreshToken) => {
   return await apiClient.post('/token/refresh/', { refresh: refreshToken });
 };
 
+export const verifyEmail = async (token, expiry) => {
+  const queryParams = new URLSearchParams({ token, expiry }).toString();
+  return apiClient.get(`/verify-email/?${queryParams}`);
+};
+
+export const requestEmailVerification = async (data) => {
+  return apiClient.post('/verify-email/', data); 
+};
+
+export const requestPhoneVerification = async (data) => {
+  return apiClient.post('/verify-phone/', data);
+};
+
+export const verifyPhone = async (data) => {
+  return apiClient.patch('/verify-phone/', data);
+};
+
 export const verifyPassResetLink = async (token, expiry) => {
   const queryParams = new URLSearchParams({ token, expiry }).toString();
   return apiClient.get(`/reset-password/?${queryParams}`);
 };
 
-export const requestPasswordReset = async (email) => {
-  return apiClient.post('/reset-password/', { email });
+export const requestPasswordReset = async (data) => {
+  return apiClient.post('/reset-password/', data);
 };
 
-export const resetPassword = async (token, expiry, password, c_password) => {
+export const resetPassword = async (token, expiry, data) => {
   const queryParams = new URLSearchParams({ token, expiry }).toString();
-  return apiClient.patch(`/reset-password/?${queryParams}`, { 
-    password, 
-    c_password 
-  });
+  return apiClient.patch(`/reset-password/?${queryParams}`, data);
 };
 
 export const logout = async () => {
@@ -67,4 +78,32 @@ export const socialOauth = async (data) => {
 
 export const getUsers = async () => {
   return apiClient.get('/users/');
+};
+
+export const getUser = async (id) => {
+  return apiClient.get(`/users/${id}/`);
+};
+
+export const postUser = async (data) => {
+  return apiClient.post('/users/', data);
+};
+
+export const patchUser = async (id, data) => {
+  return apiClient.patch(`/users/${id}/`, data);
+};
+
+export const deleteUser = async (id) => {
+  return apiClient.delete(`/users/${id}/`);
+};
+
+export const activateUser = async (id) => {
+  return apiClient.patch(`/users/${id}/activate-user/`);
+};
+
+export const deactivateUser = async (id) => {
+  return apiClient.patch(`/users/${id}/deactivate-user/`);
+};
+
+export const uploadProfileImage = async (id, data) => {
+  return apiClient.post(`/users/${id}/upload-image/`, data);
 };

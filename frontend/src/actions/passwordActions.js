@@ -43,9 +43,12 @@ export const passwordError = async (response) => {
 };
 
 export async function requestPasswordResetAction(formData) {
-  const email = formData.get("email");
+  const data = {
+    email: formData.get("email"),
+  };
+
   try {
-    const response = await requestPasswordReset(email);
+    const response = await requestPasswordReset(data);
 
     if (response.error) {
       return { error: response.error };
@@ -76,11 +79,13 @@ export async function verifyResetLinkAction(token, expiry) {
 export async function resetPasswordAction(formData) {
   const token = formData.get("token");
   const expiry = formData.get("expiry");
-  const password = formData.get("password");
-  const c_password = formData.get("c_password");
+  const data = {
+    password: formData.get("password"),
+    c_password: formData.get("c_password"),
+  };
 
   try {
-    const response = await resetPassword(token, expiry, password, c_password);
+    const response = await resetPassword(token, expiry, data);
 
     if (response.error) {
       const error = await passwordError(response);

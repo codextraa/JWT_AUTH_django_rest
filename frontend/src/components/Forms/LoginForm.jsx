@@ -116,6 +116,14 @@ export default function LoginForm() {
       ></div>
       <LoginButton disabled={!isRecaptchaVerified} />
       <div className={styles.actionLinks}>
+        <Link href={`${BASE_ROUTE}/auth/register`} className={styles.forgotPassword}>
+          Register an account
+        </Link>
+        <Link href={`${BASE_ROUTE}/auth/verify-email/request`} className={styles.verifyOtp}>
+          Verify Email
+        </Link>
+      </div>
+      <div className={styles.actionLinks}>
         <Link href={`${BASE_ROUTE}/auth/reset-password/request`} className={styles.forgotPassword}>
           Forgot Password?
         </Link>

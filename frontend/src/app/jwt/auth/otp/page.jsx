@@ -1,10 +1,10 @@
 'use client';
-
+import Link from "next/link";
+import { BASE_ROUTE, DEFAULT_LOGIN_REDIRECT } from '@/route';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { verifyOtpAction, resendOtpAction } from '@/actions/authActions';
 import { OtpVerifyButton, ResendOtpButton } from '@/components/Buttons/Button';
-import { BASE_ROUTE, DEFAULT_LOGIN_REDIRECT } from '@/route';
 import { decrypt } from '@/libs/session';
 import styles from './page.module.css';
 
@@ -123,6 +123,11 @@ export default function OtpPage() {
         <div className={styles.inputGroup}>
           <label htmlFor="otp">Enter the OTP sent in your mail:</label>
           <input type="text" id="otp" name="otp" required />
+        </div>
+        <div className={styles.actionLinks}>
+          <Link href={`${BASE_ROUTE}/auth/login`} className={styles.backToLogin}>
+            Back to Login
+          </Link>
         </div>
         <OtpVerifyButton />
         <ResendOtpButton

@@ -49,3 +49,15 @@
   color: green;
   margin-top: 1rem;
 }
+
+.actionLinks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem; /* Optional spacing above the links */
+}
+
+.backToLogin {
+  color: #1877f2;
+  text-decoration: none;
+}

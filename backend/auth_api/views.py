@@ -517,10 +517,11 @@ class EmailVerifyView(APIView):
         if isinstance(email, Response):
             return email
         
-        user = check_user_validity(email)
+        user = get_user_model().objects.filter(email=email).first()
         
-        if isinstance(user, Response):
-            return user
+        # Check if user exists
+        if not user:
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
         user.is_email_verified = True
         user.save()
@@ -576,10 +577,17 @@ class EmailVerifyView(APIView):
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
         
-        user = check_user_validity(email)
+        user = get_user_model().objects.filter(email=email).first()
+
+        # Check if user exists
+        if not user:
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
-        if isinstance(user, Response):
-            return user
+        if user.auth_provider != 'email':
+            return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user.is_email_verified:
+            return Response({"error": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
         
         email_sent = EmailLink.send_email_link(email)
         
