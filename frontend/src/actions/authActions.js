@@ -25,7 +25,7 @@ export async function recaptchaVerifyAction(token) {
     return await recaptchaVerify(data);
   } catch (error) {
     // Handle any network or unexpected error
-    console.log(error);
+    console.error(error);
     return { error: error.message || 'An error occurred during reCAPTCHA verification.' };
   };
 };
@@ -44,7 +44,7 @@ export async function loginAction(formData) {
     return await login(credentials);
   } catch (error) {
     // Handle any network or unexpected error
-    console.log(error);
+    console.error(error);
     return { error: error.message || 'An error occurred during login.' };
   };
 };
@@ -74,7 +74,7 @@ export async function verifyOtpAction(formData) {
     }
   } catch (error) {
     // Handle any network or unexpected error
-    console.log(error);
+    console.error(error);
     return { error: error.message || 'An error occurred during OTP verification.' };
   };
 };
@@ -89,13 +89,12 @@ export async function resendOtpAction(user_id) {
     return await resendOtp(user);
   } catch (error) {
     // Handle any network or unexpected error
-    console.log(error);
+    console.error(error);
     return { error: error.message || 'An error occurred during login.' };
   };
 };
 
 export async function socialLoginAction(provider, accessToken) {
-  console.log('entered socialLoginAction')
   try {
     const auth_data = {
       provider: provider,

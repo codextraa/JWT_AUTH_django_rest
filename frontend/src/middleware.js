@@ -10,17 +10,18 @@ import {
   DEFAULT_LOGIN_REDIRECT,
   publicRoutes,
   apiRoute,
-  authRoutes,
+  authRoute,
 } from "./route";
 
 
 export async function middleware(req) {
   console.log("Middleware triggered");
   const { pathname } = req.nextUrl;
+  console.log(`Pathname: ${pathname}`);
   
   const isPublicRoute = publicRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith(apiRoute);
-  const isAuthRoute = authRoutes.includes(pathname);
+  const isAuthRoute = pathname.startsWith(authRoute);
 
   if (isPublicRoute) {
     console.log('Handling public route');
@@ -50,7 +51,7 @@ export async function middleware(req) {
   if (isAuthRoute) {
     console.log('Handling auth route');
     if (isLoggedIn) {
-      console.log('User is logged in, redirecting to /');
+      console.log('User is logged in, redirecting to home page');
       // Avoid redirect loop if already at the login page
       if (pathname === DEFAULT_LOGIN_REDIRECT) {
         console.log('Skipping middleware for DEFAULT_LOGIN_REDIRECT');
@@ -63,13 +64,13 @@ export async function middleware(req) {
 
   // Redirect unauthenticated users from protected routes to the login page
   if (!isLoggedIn) {
-    console.log(`User is not logged in, redirecting to ${BASE_ROUTE}/login`);
+    console.log(`User is not logged in, redirecting to ${BASE_ROUTE}/auth/login`);
     // Prevent redirect loop if already at the login page
-    if (pathname === `${BASE_ROUTE}/login`) {
-      console.log(`Skipping middleware for ${BASE_ROUTE}/login`);
+    if (pathname === `${BASE_ROUTE}/auth/login`) {
+      console.log(`Skipping middleware for ${BASE_ROUTE}/auth/login`);
       return NextResponse.next();
     }
-    return NextResponse.redirect(new URL(`${BASE_ROUTE}/login`, req.url)); // Redirect to login page
+    return NextResponse.redirect(new URL(`${BASE_ROUTE}/auth/login`, req.url)); // Redirect to login page
   };
 
   if (updatedCookie) {

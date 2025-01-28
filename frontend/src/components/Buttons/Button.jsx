@@ -3,7 +3,7 @@
 import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { useFormStatus } from 'react-dom';
-import { logoutAction, recaptchaVerifyAction } from "@/actions/authActions";
+import { logoutAction } from "@/actions/authActions";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
@@ -47,6 +47,26 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
+export const PasswordResetButton = () => {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending} className={baseStyles.resetPassButton}>
+      {pending ? "Resetting..." : "Reset Password"}
+    </button>
+  )
+};
+
+export const PasswordResetRequestButton = () => {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending} className={baseStyles.resetPassButton}>
+      {pending ? "Sending..." : "Send Reset Link"}
+    </button>
+  )
+};
+
 function SocialLoginButton({ provider, isDisabled, icon, setError }) {
   const [isLoading, setIsLoading] = useState(false);
   const disabled = isDisabled;
@@ -61,7 +81,11 @@ function SocialLoginButton({ provider, isDisabled, icon, setError }) {
     }
 
     try {
-      await signIn(provider, { redirectTo: "/jwt/login" });
+      const result = await signIn(provider, { redirectTo: "/jwt/login" });
+      console.log("Social login result:", result);
+      if (result?.error) {
+        setError(result.error); // Set error from backend response
+      };
     } catch (error) {
       console.error("Error during social login:", error);
       setError(`Error during ${provider} login. Please try again.`);

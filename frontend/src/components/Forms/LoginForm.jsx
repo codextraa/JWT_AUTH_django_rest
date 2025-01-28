@@ -91,7 +91,7 @@ export default function LoginForm() {
       setError('');
       sessionStorage.setItem('otpRequired', 'true');
       sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-      router.push(`${BASE_ROUTE}/otp`);
+      router.push(`${BASE_ROUTE}/auth/otp`);
     } else {
       setError('Something went wrong, could not send OTP. Try again');
     }
@@ -116,11 +116,11 @@ export default function LoginForm() {
       ></div>
       <LoginButton disabled={!isRecaptchaVerified} />
       <div className={styles.actionLinks}>
-        <Link href={`${BASE_ROUTE}/forgot-password`} className={styles.forgotPassword}>
+        <Link href={`${BASE_ROUTE}/auth/reset-password/request`} className={styles.forgotPassword}>
           Forgot Password?
         </Link>
         {otp && (
-          <Link href={`${BASE_ROUTE}/otp`} className={styles.verifyOtp}>
+          <Link href={`${BASE_ROUTE}/auth/otp`} className={styles.verifyOtp}>
             Verify OTP
           </Link>
         )}

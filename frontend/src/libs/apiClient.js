@@ -10,8 +10,8 @@ export class ApiClient {
   };
 
   async handleErrors(response) {
-    const clonedResponse = response.clone();
     const contentType = response.headers.get("Content-Type") || "";
+    const clonedResponse = response.clone();
 
     if (response.ok) {
       if (response.status === 204) {

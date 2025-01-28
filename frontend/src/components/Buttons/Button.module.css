@@ -48,3 +48,17 @@
   background-color: #7f7f7f;
   cursor: not-allowed;
 }
+
+.resetPassButton {
+  background-color: #0070f3;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.resetPassButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

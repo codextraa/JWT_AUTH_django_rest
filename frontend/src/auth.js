@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import FacebookProvider from 'next-auth/providers/facebook';
@@ -61,7 +60,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account.provider === 'github') {
         result = await socialLoginAction("github", account.access_token);
       };
-      
+
+      if (result?.error) { // This doesn't work need to fix this
+        return { error: result.error };
+      }
+
       return true;
       // should be false if result fails to return success
     },

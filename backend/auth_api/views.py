@@ -73,7 +73,7 @@ def check_user_validity(email):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
     
     if user.auth_provider != 'email':
-        return Response({"error": f"User with this email already created using {user.auth_provider}. Please login using {user.auth_provider}."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is active
     if not user.is_active:
@@ -126,7 +126,7 @@ def create_otp(user_id, email, password):
     if otp_email:
         # Setting the cache data
         cache.set(f"id_{user_id}", user_id, timeout=60) # Cache id for 1 minute (used for email verification)
-        cache.set(f"otp_{user_id}", otp, timeout=60) # Cache otp for 1 minute (used for otp verification)
+        cache.set(f"otp_{user_id}", otp, timeout=600) # Cache otp for 1 minute (used for otp verification)
         cache.set(f"email_{user_id}", email, timeout=600) # Cache email for 10 minutes (used for otp verification)
         cache.set(f"password_{user_id}", password, timeout=600)  # Store password in cache for verification
         return Response({"success": "Email sent", "otp": True, "user_id": user_id}, status=status.HTTP_200_OK)
@@ -902,7 +902,6 @@ class UserViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile."""
         current_user = self.request.user
-        print(request.data)
         user = self.get_object()
         
         if 'email' in request.data:

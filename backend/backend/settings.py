@@ -36,6 +36,7 @@ PUBLIC_KEY = open(os.path.join(BASE_DIR, "public_key.pem")).read()
 
 # URLS
 HTTPS = os.getenv("HTTPS")
+BASE_ROUTE = os.getenv("FRONTEND_BASE_ROUTE")
 
 if HTTPS == "True":
     BACKEND_URL = os.getenv("HTTPS_BACKEND_URL")

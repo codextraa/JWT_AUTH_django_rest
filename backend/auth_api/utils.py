@@ -5,7 +5,7 @@ from django.core.cache import cache
 from django.conf import settings
 from django.core.mail import EmailMessage
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from twilio.rest import Client
+# from twilio.rest import Client
 
 
 APP_NAME = settings.APP_NAME
@@ -52,6 +52,8 @@ class EmailLink:
     SECRET_KEY = settings.SECRET_KEY
     SALT = "email-verification"
     EXPIRY_SECONDS = 600  # 10 minutes
+    FRONTEND_URL = settings.FRONTEND_URL
+    BASE_ROUTE = settings.BASE_ROUTE
 
     @classmethod
     def _generate_link(cls, email, action):
@@ -71,9 +73,9 @@ class EmailLink:
         
         # return f"{settings.FRONTEND_URL}/verify-email/{token}"
         if action == 'email-verification':
-            return f"{settings.BACKEND_URL}/api/verify-email/?{query_string}"
+            return f"{cls.FRONTEND_URL}{cls.BASE_ROUTE}/auth/verify-email/?{query_string}"
         elif action == 'password-reset':
-            return f"{settings.BACKEND_URL}/api/reset-password/?{query_string}"
+            return f"{cls.FRONTEND_URL}{cls.BASE_ROUTE}/auth/reset-password/?{query_string}"
         else:
             raise ValueError("Invalid action.")
 

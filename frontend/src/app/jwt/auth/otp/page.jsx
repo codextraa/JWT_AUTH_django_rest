@@ -21,7 +21,7 @@ export default function OtpPage() {
     const otpExpiry = sessionStorage.getItem('otpExpiry');
 
     if (!otpRequired || Date.now() > parseInt(otpExpiry, 10)) {
-      router.push(`${BASE_ROUTE}/login`);
+      router.push(`${BASE_ROUTE}/auth/login`);
     }
 
     // Start the timer when the component is mounted
@@ -47,7 +47,7 @@ export default function OtpPage() {
       if (!session_user_id) {
         setError('Session expired. Please login again');
         sessionStorage.clear();
-        router.push(`${BASE_ROUTE}/login`);
+        router.push(`${BASE_ROUTE}/auth/login`);
         return;
       }
 
@@ -77,7 +77,7 @@ export default function OtpPage() {
       if (!session_user_id) {
         setError('Session expired. Please login again');
         sessionStorage.clear();
-        router.push(`${BASE_ROUTE}/login`);
+        router.push(`${BASE_ROUTE}/auth/login`);
         return;
       }
 

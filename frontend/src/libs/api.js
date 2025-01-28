@@ -36,6 +36,23 @@ export const refreshToken = async (refreshToken) => {
   return await apiClient.post('/token/refresh/', { refresh: refreshToken });
 };
 
+export const verifyPassResetLink = async (token, expiry) => {
+  const queryParams = new URLSearchParams({ token, expiry }).toString();
+  return apiClient.get(`/reset-password/?${queryParams}`);
+};
+
+export const requestPasswordReset = async (email) => {
+  return apiClient.post('/reset-password/', { email });
+};
+
+export const resetPassword = async (token, expiry, password, c_password) => {
+  const queryParams = new URLSearchParams({ token, expiry }).toString();
+  return apiClient.patch(`/reset-password/?${queryParams}`, { 
+    password, 
+    c_password 
+  });
+};
+
 export const logout = async () => {
   const refreshToken = await getRefreshTokenFromSession();
 
