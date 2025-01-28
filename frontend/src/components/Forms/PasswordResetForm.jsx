@@ -34,6 +34,15 @@ export default function PasswordResetForm({ token, expiry }) {
           New Password
         </label>
         <input type="password" id="password" name="password" required className={styles.input} />
+        <small className={styles.small}>
+          Password must be at least 8 characters.
+          <span className={styles.line}>Must include at least
+            one uppercase letter, 
+            one lowercase letter, 
+            one number, 
+            one special character. 
+          </span>
+        </small>
       </div>
       <div className={styles.formGroup}>
         <label htmlFor="c_password" className={styles.label}>

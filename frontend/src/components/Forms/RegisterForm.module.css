@@ -27,7 +27,7 @@
 
 .error {
   color: #ff0000;
-  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .link {
@@ -44,7 +44,8 @@
 
 .small {
   display: block;
-  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
   color: var(--gray-color);
 }
 

@@ -890,8 +890,10 @@ class UserViewSet(ModelViewSet):
             )
             
         password = request.data.get('password')
+        if not request.data.get('c_password'):
+            return Response({"error": "Please confirm your password."}, status=status.HTTP_400_BAD_REQUEST)
+            
         c_password = request.data.pop('c_password')
-        
         if password != c_password:
             return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
             

@@ -57,7 +57,6 @@ class PasswordResetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("New password cannot be the same as the old password.")
         
         errors = validate_password(password)
-        
         if errors:
             raise serializers.ValidationError(errors)
         
@@ -107,41 +106,13 @@ class UserSerializer(serializers.ModelSerializer):
             }
         }
         
-    def _validate_email(self, email):
-        """Email validation"""
-        if not self.instance and get_user_model().objects.filter(email=email).exists():
-            return 'Email is already in use. Please use a different email.'
-        
-    def _validate_username(self, username):
-        """Username validation"""
-        if not self.instance and get_user_model().objects.filter(username=username).exists():
-            return 'Username is already in use. Please use a different username.'
-        
     def validate(self, attrs):
         """Validate all data"""
-        errors = {}
-        
-        email = attrs.get('email')
-        if email:
-            email_errors = self._validate_email(email)
-            
-        username = attrs.get('username')
-        if username:
-            username_errors = self._validate_username(username)
-        
         password = attrs.get('password')
-        if password:
-            password_errors = validate_password(password)
-            
-        if email_errors:
-            errors['email'] = email_errors
-        if username_errors:
-            errors['username'] = username_errors
-        if password_errors:
-            errors['password'] = password_errors
-            
+        
+        errors = validate_password(password)
         if errors:
-            raise serializers.ValidationError(errors)
+            raise serializers.ValidationError({'password': errors})
         
         attrs = super().validate(attrs)
         

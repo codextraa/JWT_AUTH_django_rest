@@ -8,7 +8,7 @@ from django.contrib.auth.models import (
 )
 from phonenumber_field.modelfields import PhoneNumberField
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
+from django.core.validators import validate_email, RegexValidator
 
 
 class UserManager(BaseUserManager):
@@ -63,7 +63,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('github', 'GitHub'),
     ]
     email = models.EmailField(max_length=255, unique=True)
-    username = models.CharField(max_length=255, unique=True, blank=True, null=True)
+    username = models.CharField(max_length=255, unique=True, blank=True, null=True,
+                                validators=[
+                                    RegexValidator(
+                                        regex=r'^\S+$',  # No whitespace allowed
+                                        message="Username cannot contain spaces",
+                                        code="invalid_username"
+                                    )
+                                ])
     first_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50, blank=True, null=True)
     phone_number = PhoneNumberField(unique=True, blank=True, null=True)

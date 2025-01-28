@@ -4,11 +4,13 @@ import { signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 import { useFormStatus } from 'react-dom';
 import { logoutAction } from "@/actions/authActions";
+import { BASE_ROUTE } from "@/route";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
 export const LoginButton = ({ disabled }) => {
   const { pending } = useFormStatus();
+  console.log('disabled', disabled)
 
   return (
     <button 
@@ -91,7 +93,7 @@ function SocialLoginButton({ provider, isDisabled, icon, setError }) {
     }
 
     try {
-      const result = await signIn(provider, { redirectTo: "/jwt/login" });
+      const result = await signIn(provider, { redirectTo: `${BASE_ROUTE}/auth/login` });
       console.log("Social login result:", result);
       if (result?.error) {
         setError(result.error); // Set error from backend response
@@ -177,12 +179,15 @@ export function GitHubLoginButton({ isDisabled, setError }) {
   );
 };
 
-export function RegisterButton() {
+export function RegisterButton({ disabled }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" disabled={pending} className={baseStyles.registerButton}>
-      {pending ? "Registering..." : "Register"}
+    <button 
+    type="submit" 
+    disabled={disabled || pending} 
+    className={baseStyles.registerButton}>
+      {pending ? "Registering..." : disabled ? 'Register' : 'Register'}
     </button>
   );
 };

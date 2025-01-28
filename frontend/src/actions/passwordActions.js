@@ -15,19 +15,19 @@ export const passwordError = async (response) => {
 
     // Check for each possible attribute and append its messages
     if (response.error.short) {
-      errorMessages.push(...response.error.short);
+      errorMessages.push(...[response.error.short]);
     }
     if (response.error.upper) {
-      errorMessages.push(...response.error.upper);
+      errorMessages.push(...[response.error.upper]);
     }
     if (response.error.lower) {
-      errorMessages.push(...response.error.lower);
+      errorMessages.push(...[response.error.lower]);
     }
     if (response.error.number) {
-      errorMessages.push(...response.error.number);
+      errorMessages.push(...[response.error.number]);
     }
     if (response.error.special) {
-      errorMessages.push(...response.error.special);
+      errorMessages.push(...[response.error.special]);
     }
 
     if (errorMessages.length === 0) {

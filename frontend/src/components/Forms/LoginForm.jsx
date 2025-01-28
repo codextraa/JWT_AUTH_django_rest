@@ -50,7 +50,7 @@ export default function LoginForm() {
         setIsRecaptchaVerified(true);
       } else {
         setIsRecaptchaVerified(false);
-      }
+      };
     };
 
     return () => {
@@ -74,6 +74,12 @@ export default function LoginForm() {
     };
 
     const result = await loginAction(formData);
+
+    if (typeof grecaptcha !== 'undefined') {
+      grecaptcha.reset();
+    }
+    setIsRecaptchaVerified(false);
+
     if (result.error) {
       setError(result.error);
       setSuccess('');
@@ -94,7 +100,7 @@ export default function LoginForm() {
       router.push(`${BASE_ROUTE}/auth/otp`);
     } else {
       setError('Something went wrong, could not send OTP. Try again');
-    }
+    };
   };
 
   return (
