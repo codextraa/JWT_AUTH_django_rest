@@ -118,7 +118,7 @@ export const getUsersAction = async () => {
       return { error: response.error };
     };
 
-    return { users: response.data };
+    return { data: response };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to fetch users." }
@@ -133,7 +133,7 @@ export const getUserAction = async (id) => {
       return { error: response.error };
     };
 
-    return { user: response.data };
+    return { data: response };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to fetch user." }

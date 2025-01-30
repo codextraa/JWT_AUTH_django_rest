@@ -23,6 +23,7 @@ def save_user_slug(sender, instance, created, **kwargs):
 def set_user_default_group(sender, instance, created, **kwargs):
     if created and instance.pk:
         if instance.is_superuser:
+            instance.profile_img = 'profile_images/default_profile.jpg'
             admin_group, _ = Group.objects.get_or_create(name="Superuser")
             instance.groups.add(admin_group)
         elif instance.is_staff:

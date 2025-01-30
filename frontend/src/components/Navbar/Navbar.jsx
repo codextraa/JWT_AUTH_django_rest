@@ -31,7 +31,9 @@ export default function Navbar() {
 
   return (
     <nav className={styles.navbar}>
-      <div className={styles.logo}>JWT-AUTH</div>
+      <div>
+        <Link href={`${BASE_ROUTE}/`} className={styles.logo}>JWT-AUTH</Link>
+      </div>
       <div className={styles.navLinks}>
         {userId && (
           <Link href={`${BASE_ROUTE}/profile/${userId}`} className={styles.link}>

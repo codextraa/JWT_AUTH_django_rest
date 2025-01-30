@@ -209,7 +209,7 @@ SOCIAL_AUTH_FACEBOOK_KEY = os.getenv("FACEBOOK_CLIENT_ID")
 SOCIAL_AUTH_FACEBOOK_SECRET = os.getenv("FACEBOOK_CLIENT_SECRET")
 SOCIAL_AUTH_FACEBOOK_SCOPE = ['email']
 SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
-    'fields': 'id,name,email,picture',
+    'fields': 'id,name,email,picture.width(500).height(500)',
 }
 
 SOCIAL_AUTH_GITHUB_KEY = os.getenv("GITHUB_CLIENT_ID")
@@ -322,7 +322,7 @@ if TESTING:
     MEDIA_URL = '/media/test_media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', 'test_media')
 else:
-    MEDIA_URL = '/media/'
+    MEDIA_URL = 'https://localhost/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media')
     
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

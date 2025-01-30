@@ -10,6 +10,19 @@
   margin-bottom: 20px;
 }
 
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 .form {
   background-color: #f9f9f9;
   padding: 20px;
@@ -43,4 +56,9 @@
 .error {
   color: #f44336;
   margin-top: 10px;
+}
+
+.loading {
+  text-align: center;
+  margin-top: 20px;
 }

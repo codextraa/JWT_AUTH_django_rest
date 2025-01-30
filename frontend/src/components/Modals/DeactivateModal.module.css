@@ -1,5 +1,6 @@
 .button {
   background-color: #f44336;
+  align-items: center;
   border: none;
   color: white;
   padding: 10px 20px;

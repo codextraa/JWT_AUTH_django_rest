@@ -101,6 +101,7 @@ class UserActionSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """User Serializer"""
+    profile_img = serializers.SerializerMethodField()
     
     class Meta:
         model = get_user_model()
@@ -131,6 +132,13 @@ class UserSerializer(serializers.ModelSerializer):
             attrs['last_name'] = attrs['last_name'].title()
         
         return attrs
+    
+    def get_profile_img(self, obj):
+        if obj.profile_img:
+            if obj.profile_img.name.startswith("http"):
+                return obj.profile_img.name
+            
+            return obj.profile_img.url
     
     def create(self, validated_data):
         # Need to check this

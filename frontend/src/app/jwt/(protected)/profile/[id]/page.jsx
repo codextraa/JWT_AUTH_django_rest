@@ -8,70 +8,81 @@ import {
   uploadProfileImageAction,
   deactivateUserAction,
 } from "@/actions/userActions";
+import { getUserIdAction } from "@/actions/authActions";
 import { BASE_ROUTE } from "@/route";
-import { getUserIdFromSession } from "@/libs/cookie";
 import ProfileImage from "@/components/Modals/ProfileImageModal"
 import DeactivateModal from "@/components/Modals/DeactivateModal";
 import { UpdateButton, UploadImageButton } from "@/components/Buttons/Button";
-import styles from "./page.module.css"
+import styles from "./page.module.css";
 
 export default function ProfilePage({ params }) {
-  const [user, setUser] = useState(null)
-  const [error, setError] = useState("")
-  const router = useRouter()
+  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
-    fetchUser()
-  }, [])
+    fetchUser();
+  }, []);
 
   const fetchUser = async () => {
-    const result = await getUserAction(params.id)
-    if (result.user) {
-      setUser(result.user)
+    const params_obj = await params;
+    const user_id = await getUserIdAction();
+    setIsDeactivateOpen(user_id === params_obj.id);
+    const result = await getUserAction(params_obj.id);
+    if (result.data) {
+      setUser(result.data);
     } else {
-      setError(result.error)
-    }
-  }
+      setError(result.error);
+    };
+  };
 
   const handleUpdate = async (formData) => {
-    const result = await updateUserAction(params.id, formData)
+    const params_obj = await params;
+    const result = await updateUserAction(params_obj.id, formData);
     if (result.success) {
-      fetchUser()
+      fetchUser();
     } else {
-      setError(result.error)
-    }
-  }
+      setError(result.error);
+    };
+  };
 
   const handleUpload = async (file) => {
-    const formData = new FormData()
-    formData.append("profile_img", file)
-    const result = await uploadProfileImageAction(params.id, formData)
+    const params_obj = await params;
+    const formData = new FormData();
+    formData.append("profile_img", file);
+    const result = await uploadProfileImageAction(params_obj.id, formData);
     if (result.success) {
-      fetchUser()
+      fetchUser();
     } else {
-      setError(result.error)
-    }
-  }
+      setError(result.error);
+    };
+  };
 
   const handleDeactivate = async () => {
-    const result = await deactivateUserAction(params.id)
+    const params_obj = await params;
+    const result = await deactivateUserAction(params_obj.id);
     if (result.success) {
-      router.push(`${BASE_ROUTE}/auth/login`)
+      router.push(`${BASE_ROUTE}/auth/login`);
     } else {
-      setError(result.error)
-    }
-  }
+      setError(result.error);
+    };
+  };
 
   if (!user) {
-    return <div>Loading...</div>
-  }
+    return <div className={styles.loading}>Loading...</div>
+  };
 
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>User Profile</h1>
-      <ProfileImage src={user.profile_img} alt={user.username} />
-      <UploadImageButton onUpload={handleUpload} />
+      {error && <p className={styles.error}>{error}</p>}
+      <div className={styles.profile}>
+        <ProfileImage src={user.profile_img} alt={user.username} />
+        <UploadImageButton onUpload={handleUpload} />
+      </div>
       <form action={handleUpdate} className={styles.form}>
+        <h2 className={styles.title}>Update Profile</h2>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
           <input type="email" id="email" name="email" value={user.email} disabled />
@@ -92,10 +103,11 @@ export default function ProfilePage({ params }) {
           <label htmlFor="phone_number">Phone Number</label>
           <input type="tel" id="phone_number" name="phone_number" defaultValue={user.phone_number} />
         </div>
-        <UpdateButton />
+        <div className={styles.buttons}>
+          <UpdateButton />
+          {isDeactivateOpen && <DeactivateModal onDeactivate={handleDeactivate} />}
+        </div>
       </form>
-      {getUserIdFromSession() === params.id && <DeactivateModal onDeactivate={handleDeactivate} />}
-      {error && <p className={styles.error}>{error}</p>}
     </div>
-  )
-}
+  );
+};
