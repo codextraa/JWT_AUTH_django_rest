@@ -2,7 +2,14 @@
 import { 
   verifyEmail,
   requestEmailVerification,
-  createUser
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+  activateUser,
+  deactivateUser,
+  uploadProfileImage
 } from "@/libs/api";
 
 
@@ -103,6 +110,36 @@ export const requestEmailVerificationAction = async (formData) => {
   }
 };
 
+export const getUsersAction = async () => {
+  try {
+    const response = await getUsers();
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { users: response.data };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to fetch users." }
+  }
+};
+
+export const getUserAction = async (id) => {
+  try {
+    const response = await getUser(id);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { user: response.data };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to fetch user." }
+  }
+};
+
 export const createUserAction = async (formData) => {
   const email = formData.get("email");
   const username = formData.get("username");
@@ -156,6 +193,97 @@ export const createUserAction = async (formData) => {
     return { success: response.success };
   } catch (error) {
     console.error(error);
-    return { error: error.message || "Failed to create user. Something went wrong." };
+    return { error: error.message || "Failed to create user." };
+  };
+};
+
+export const updateUserAction = async (id, formData) => {
+  const username = formData.get("username");
+  const first_name = formData.get("first_name");
+  const last_name = formData.get("last_name");
+  const phone_number = formData.get("phone_number");
+
+  const data = {
+    ...(username && { username }),
+    ...(first_name && { first_name }),
+    ...(last_name && { last_name }),
+    ...(phone_number && { phone_number }),
+  };
+
+  try {
+    const response = await updateUser(id, data);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to update user." };
+  };
+};
+
+export const deleteUserAction = async (id) => {
+  try {
+    const response = await deleteUser(id);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to delete user." };
+  };
+};
+
+export const activateUserAction = async (id) => {
+  try {
+    const response = await activateUser(id);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to activate user." };
+  };
+};
+
+export const deactivateUserAction = async (id) => {
+  try {
+    const response = await deactivateUser(id);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to deactivate user." };
+  };
+};
+
+export const uploadProfileImageAction = async (id, formData) => {
+  const data = {
+    profile_img: formData.get("profile_img"),
+  };
+
+  try {
+    const response = await uploadProfileImage(id, data);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to upload profile image." };
   };
 };

@@ -9,6 +9,8 @@ import {
   logout
 } from '@/libs/api';
 import { 
+  getUserIdFromSession,
+  getUserRoleFromSession,
   deleteSessionCookie,
   setSessionCookie,
 } from '@/libs/cookie';
@@ -125,6 +127,24 @@ export const logoutAction = async() => {
     // Delete the session cookie
     await deleteSessionCookie();
     redirect(`${BASE_ROUTE}/login`);
+  } catch (error) {
+    // Throw the NEXT REDIRECT error (otherwise it won't work)
+    throw error;
+  };
+};
+
+export const getUserIdAction = async() => {
+  try {
+    return await getUserIdFromSession();
+  } catch (error) {
+    // Throw the NEXT REDIRECT error (otherwise it won't work)
+    throw error;
+  };
+};
+
+export const getUserRoleAction = async() => {
+  try {
+    return await getUserRoleFromSession();
   } catch (error) {
     // Throw the NEXT REDIRECT error (otherwise it won't work)
     throw error;

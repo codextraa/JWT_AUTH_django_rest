@@ -77,7 +77,6 @@ export const deleteSessionCookie = async () => {
   const cookieStore = await cookies();
 
   if (cookieStore.has('session')) {
-    console.log('deleting session cookie 2');
     cookieStore.set('session', '', {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
@@ -251,7 +250,7 @@ export const getAccessTokenExpiryFromSession = async () =>  {
         console.warn("Token has expired");
         return false;
       } else {
-        console.log("Token is still valid");
+        console.warn("Token is still valid");
         return true;
       };
     };

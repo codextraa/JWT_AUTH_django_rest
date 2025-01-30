@@ -132,7 +132,7 @@ export default function RegisterForm() {
       ></div>
       <RegisterButton disabled={!isRecaptchaVerified}/>
       <Link href="/login" className={styles.link}>
-        Back to Login
+        Have an account? Login
       </Link>
     </form>
   );

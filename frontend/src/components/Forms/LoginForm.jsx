@@ -11,10 +11,10 @@ import {
   LoginButton,
   GoogleLoginButton,
   FacebookLoginButton,
+  GitHubLoginButton,
   // InstagramLoginButton,
   // TwitterLoginButton,
   // LinkedInLoginButton,
-  GitHubLoginButton,
 } from '../Buttons/Button';
 
 export default function LoginForm() {

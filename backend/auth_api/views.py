@@ -23,6 +23,7 @@ from django.middleware.csrf import get_token
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
+from .pagination import UserPagination
 from .utils import (
     EmailOtp,
     EmailLink,
@@ -839,6 +840,7 @@ class UserViewSet(ModelViewSet):
     renderer_classes = [ViewRenderer]
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilterSerializer
+    pagination_class = UserPagination
 
     def get_permissions(self):
         """Permission for CRUD operations."""
@@ -921,7 +923,7 @@ class UserViewSet(ModelViewSet):
         
 
     def update(self, request, *args, **kwargs):
-        """Allow only users to update their own profile."""
+        """Allow only users to update their own profile. SuperUser can do anything."""
         current_user = self.request.user
         user = self.get_object()
         
@@ -934,6 +936,12 @@ class UserViewSet(ModelViewSet):
         if ('password' in request.data or 'c_password' in request.data):
             return Response(
                 {"error": "Password reset cannot be done without verification link."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        if 'profile_img' in request.data:
+            return Response(
+                {"error": "To update Profile Image, use the Upload Profile button."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -950,7 +958,12 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        return super().update(request, *args, **kwargs)
+        response = super().update(request, *args, **kwargs)
+        
+        if response.status_code == status.HTTP_200_OK:
+            return Response({"success": "User profile updated successfully."}, status=status.HTTP_200_OK)
+        
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """Allow only superusers to delete normal or staff users and clean up profile image."""
@@ -980,7 +993,12 @@ class UserViewSet(ModelViewSet):
         if user_to_delete.profile_img and user_to_delete.profile_img.name != default_image_path:
             user_to_delete.profile_img.delete(save=False)
 
-        return super().destroy(request, *args, **kwargs)
+        response = super().destroy(request, *args, **kwargs)
+        
+        if response.status_code == status.HTTP_204_NO_CONTENT:
+            return Response({"success": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        
+        return response
 
     @extend_schema(
         operation_id="upload_user_image",
@@ -1027,7 +1045,7 @@ class UserViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)  # returns 400 if fails
         serializer.save()
 
-        return Response(serializer.data, status=status.HTTP_200_OK)    
+        return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)    
 
     @action(detail=True, methods=['PATCH'], url_path='deactivate-user')
     def deactivate_user(self, request, pk=None):
@@ -1078,7 +1096,7 @@ class UserViewSet(ModelViewSet):
         user_to_deactivate.save()
 
         return Response(
-            {"error": f"User {user_to_deactivate.email} has been deactivated."},
+            {"success": f"User {user_to_deactivate.email} has been deactivated."},
             status=status.HTTP_200_OK,
         )
 
@@ -1119,7 +1137,7 @@ class UserViewSet(ModelViewSet):
         user_to_activate.save()
 
         return Response(
-            {f"User {user_to_activate.email} has been reactivated."},
+            {"success": f"User {user_to_activate.email} has been reactivated."},
             status=status.HTTP_200_OK,
         )
 

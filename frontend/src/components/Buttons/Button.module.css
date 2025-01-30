@@ -84,3 +84,44 @@
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+.updateButton {
+  background-color: #008cba;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.updateButton:hover {
+  background-color: #007b9a;
+}
+
+.updateButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.uploadImageButton {
+  background-color: #4caf50;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.uploadImageButton:hover {
+  background-color: #45a049;
+}

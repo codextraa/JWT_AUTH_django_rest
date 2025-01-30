@@ -1,7 +1,7 @@
 'use client';
 
 import { signIn, signOut } from "next-auth/react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useFormStatus } from 'react-dom';
 import { logoutAction } from "@/actions/authActions";
 import { BASE_ROUTE } from "@/route";
@@ -10,7 +10,6 @@ import socialStyles from './SocialLoginButton.module.css';
 
 export const LoginButton = ({ disabled }) => {
   const { pending } = useFormStatus();
-  console.log('disabled', disabled)
 
   return (
     <button 
@@ -94,7 +93,6 @@ function SocialLoginButton({ provider, isDisabled, icon, setError }) {
 
     try {
       const result = await signIn(provider, { redirectTo: `${BASE_ROUTE}/auth/login` });
-      console.log("Social login result:", result);
       if (result?.error) {
         setError(result.error); // Set error from backend response
       };
@@ -146,7 +144,7 @@ export const LogOutButton = () => {
 };
 
 
-export function GoogleLoginButton({ isDisabled, setError }) {
+export const GoogleLoginButton = ({ isDisabled, setError }) => {
   return (
     <SocialLoginButton
       provider="google"
@@ -157,7 +155,7 @@ export function GoogleLoginButton({ isDisabled, setError }) {
   );
 };
 
-export function FacebookLoginButton({ isDisabled, setError }) {
+export const FacebookLoginButton = ({ isDisabled, setError }) => {
   return (
     <SocialLoginButton
       provider="facebook"
@@ -168,7 +166,7 @@ export function FacebookLoginButton({ isDisabled, setError }) {
   );
 };
 
-export function GitHubLoginButton({ isDisabled, setError }) {
+export const GitHubLoginButton = ({ isDisabled, setError }) => {
   return (
     <SocialLoginButton
       provider="github"
@@ -179,7 +177,7 @@ export function GitHubLoginButton({ isDisabled, setError }) {
   );
 };
 
-export function RegisterButton({ disabled }) {
+export const RegisterButton = ({ disabled }) => {
   const { pending } = useFormStatus();
 
   return (
@@ -191,6 +189,41 @@ export function RegisterButton({ disabled }) {
     </button>
   );
 };
+
+export const UpdateButton = () => {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" disabled={pending} className={baseStyles.updateButton}>
+      {pending ? "Updating..." : "Update Profile"}
+    </button>
+  );
+};
+
+export const UploadImageButton = ({ onUpload }) => {
+  const fileInputRef = useRef(null);
+
+  const handleClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      onUpload(file)
+    };
+  };
+
+  return (
+    <div>
+      <button onClick={handleClick} className={baseStyles.uploadImageButton}>
+        Upload Image
+      </button>
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} accept="image/*" />
+    </div>
+  );
+};
+
 
 
 // Needs fixing
