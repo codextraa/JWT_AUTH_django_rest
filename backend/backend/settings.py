@@ -325,6 +325,9 @@ else:
     MEDIA_URL = 'https://localhost/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media')
     
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+    
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')

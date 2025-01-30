@@ -18,6 +18,7 @@ import styles from "./page.module.css";
 export default function ProfilePage({ params }) {
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -32,6 +33,7 @@ export default function ProfilePage({ params }) {
     const result = await getUserAction(params_obj.id);
     if (result.data) {
       setUser(result.data);
+      setError("");
     } else {
       setError(result.error);
     };
@@ -42,19 +44,31 @@ export default function ProfilePage({ params }) {
     const result = await updateUserAction(params_obj.id, formData);
     if (result.success) {
       fetchUser();
+      setSuccess(result.success);
+      setError("");
     } else {
+      setSuccess("");
       setError(result.error);
     };
   };
 
   const handleUpload = async (file) => {
+    if (file.size > 2 * 1024 * 1024) { // 2 MB limit
+      setSuccess("");
+      setError("File size exceeds 2MB. Please upload a smaller image.");
+      return;
+    }
+
     const params_obj = await params;
     const formData = new FormData();
     formData.append("profile_img", file);
     const result = await uploadProfileImageAction(params_obj.id, formData);
     if (result.success) {
       fetchUser();
+      setSuccess(result.success);
+      setError("");
     } else {
+      setSuccess("");
       setError(result.error);
     };
   };
@@ -63,8 +77,11 @@ export default function ProfilePage({ params }) {
     const params_obj = await params;
     const result = await deactivateUserAction(params_obj.id);
     if (result.success) {
+      setSuccess(result.success);
+      setError("");
       router.push(`${BASE_ROUTE}/auth/login`);
     } else {
+      setSuccess("");
       setError(result.error);
     };
   };
@@ -77,6 +94,7 @@ export default function ProfilePage({ params }) {
     <div className={styles.container}>
       <h1 className={styles.title}>User Profile</h1>
       {error && <p className={styles.error}>{error}</p>}
+      {success && <p className={styles.success}>{success}</p>}
       <div className={styles.profile}>
         <ProfileImage src={user.profile_img} alt={user.username} />
         <UploadImageButton onUpload={handleUpload} />

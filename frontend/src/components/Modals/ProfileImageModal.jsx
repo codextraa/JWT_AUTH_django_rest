@@ -1,11 +1,10 @@
-"use client"
-
-import { useState } from "react"
-import Image from "next/image"
-import styles from "./ProfileImageModal.module.css"
+"use client";
+import { useState } from "react";
+import Image from "next/image";
+import styles from "./ProfileImageModal.module.css";
 
 export default function ProfileImage({ src, alt }) {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className={styles.container}>
@@ -16,6 +15,7 @@ export default function ProfileImage({ src, alt }) {
           width={200}
           height={200}
           className={styles.profileImage}
+          priority
         />
       </div>
       {isModalOpen && (
@@ -30,5 +30,5 @@ export default function ProfileImage({ src, alt }) {
         </div>
       )}
     </div>
-  )
-}
+  );
+};

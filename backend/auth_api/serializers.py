@@ -172,13 +172,13 @@ class UserImageSerializer(serializers.ModelSerializer):
     def validate_profile_img(self, value):
         """Validate profile image"""
         errors = {}
-        max_size = 3 * 1024 * 1024 # 3MB
+        max_size = 2 * 1024 * 1024 # 2MB
         valid_file_types = ['image/jpeg', 'image/png'] # valid image types
         
         if value.size > max_size:
-            errors['size'] = 'Profile image size should not exceed 3MB.'
+            errors['size'] = 'Profile image size should not exceed 2MB.'
 
-        if value.content_type not in valid_file_types:
+        if hasattr(value, 'content_type') and value.content_type not in valid_file_types:
             errors['type'] = 'Profile image type should be JPEG, PNG'
             
         if errors:

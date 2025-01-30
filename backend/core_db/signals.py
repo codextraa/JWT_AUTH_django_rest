@@ -26,6 +26,7 @@ def set_user_default_group(sender, instance, created, **kwargs):
             instance.profile_img = 'profile_images/default_profile.jpg'
             admin_group, _ = Group.objects.get_or_create(name="Superuser")
             instance.groups.add(admin_group)
+            instance.save()
         elif instance.is_staff:
             admin_group, _ = Group.objects.get_or_create(name="Admin")
             instance.groups.add(admin_group)

@@ -211,6 +211,7 @@ export const UploadImageButton = ({ onUpload }) => {
     const file = event.target.files[0];
     if (file) {
       onUpload(file)
+      event.target.value = null;
     };
   };
 
@@ -223,7 +224,6 @@ export const UploadImageButton = ({ onUpload }) => {
     </div>
   );
 };
-
 
 
 // Needs fixing

@@ -105,5 +105,5 @@ export const deactivateUser = async (id) => {
 };
 
 export const uploadProfileImage = async (id, data) => {
-  return apiClient.patch(`/users/${id}/upload-image/`, data, isMultipart = true);
+  return apiClient.patch(`/users/${id}/upload-image/`, data, {}, true);
 };

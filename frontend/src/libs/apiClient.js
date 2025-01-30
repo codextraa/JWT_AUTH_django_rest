@@ -92,7 +92,7 @@ export class ApiClient {
 
     if (isMultipart && data instanceof FormData) {
       // For multipart/form-data
-      // delete options.headers["Content-Type"];
+      delete options.headers["Content-Type"];
       options.body = data;
     } else if (data) {
       // For application/json

@@ -55,6 +55,13 @@
 
 .error {
   color: #f44336;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.success {
+  color: #4caf50;
+  text-align: center;
   margin-top: 10px;
 }
 

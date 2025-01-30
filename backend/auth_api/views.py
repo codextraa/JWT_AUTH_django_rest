@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -1017,9 +1018,10 @@ class UserViewSet(ModelViewSet):
         },
         responses={200: UserSerializer},
     )
-    @action(detail=True, methods=['PATCH'], url_path='upload-image')  # detail=True is only for a single user
+    @action(detail=True, methods=['PATCH'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])  # detail=True is only for a single user
     def upload_image(self, request, pk=None):
         """Update user profile image"""
+        print(request.data)
         user = self.get_object()  # get the user
         current_user = self.request.user  # Get the user making the request
 
@@ -1045,7 +1047,7 @@ class UserViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)  # returns 400 if fails
         serializer.save()
 
-        return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)    
+        return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['PATCH'], url_path='deactivate-user')
     def deactivate_user(self, request, pk=None):

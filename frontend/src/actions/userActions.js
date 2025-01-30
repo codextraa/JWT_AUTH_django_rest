@@ -270,14 +270,13 @@ export const deactivateUserAction = async (id) => {
 };
 
 export const uploadProfileImageAction = async (id, formData) => {
-  const data = {
-    profile_img: formData.get("profile_img"),
-  };
-
   try {
-    const response = await uploadProfileImage(id, data);
+    const response = await uploadProfileImage(id, formData);
 
     if (response.error) {
+      if (response.error.profile_img) {
+        return { error: response.error.profile_img };
+      }
       return { error: response.error };
     };
 
