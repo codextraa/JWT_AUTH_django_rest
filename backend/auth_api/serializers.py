@@ -120,9 +120,10 @@ class UserSerializer(serializers.ModelSerializer):
         """Validate all data"""
         password = attrs.get('password')
         
-        errors = validate_password(password)
-        if errors:
-            raise serializers.ValidationError({'password': errors})
+        if password:
+            errors = validate_password(password)
+            if errors:
+                raise serializers.ValidationError({'password': errors})
         
         attrs = super().validate(attrs)
         
@@ -153,7 +154,7 @@ class UserSerializer(serializers.ModelSerializer):
         return get_user_model().objects.create_user(**validated_data)
     
     def update(self, instance, validated_data):
-        """Update and return an existing user"""
+        """Update and return an existing user"""        
         updated = super().update(instance, validated_data)
         
         if validated_data.get('phone_number'):

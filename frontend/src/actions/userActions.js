@@ -20,26 +20,27 @@ export const signUpError = async (response) => {
     if (response.error.email) {
       errorMessages['email'] = response.error.email[0][0].toUpperCase() + 
       response.error.email[0].slice(1).toLowerCase();
-    }
+    };
 
     if (response.error.username) {
       errorMessages['username'] = response.error.username[0][0].toUpperCase() + 
       response.error.username[0].slice(1).toLowerCase();
-    }
+    };
 
     if (response.error.first_name) {
       errorMessages['first_name'] = response.error.first_name[0][0].toUpperCase() + 
       response.error.first_name[0].slice(1).toLowerCase();
-    }
+    };
 
     if (response.error.last_name) {
       errorMessages['last_name'] = response.error.last_name[0][0].toUpperCase() + 
       response.error.last_name[0].slice(1).toLowerCase();
-    }
+    };
 
     if (response.error.phone_number) {
       errorMessages['phone_number'] = response.error.phone_number[0][0].toUpperCase() + 
-      response.error.phone_number[0].slice(1).toLowerCase();}
+      response.error.phone_number[0].slice(1).toLowerCase();
+    };
 
     // Check for each possible attribute and append its messages
     if (response.error.password) {
@@ -73,8 +74,40 @@ export const signUpError = async (response) => {
     return { error: errorMessages };
   }
   // If it's not an object, return the error as is (string or other type)
-  return { error: response.error };
+  return { error: { error : response.error } };
 };
+
+export const updateActionError = async (response) => {
+  if (typeof response.error === "object") {
+    const errorMessages = {};
+
+    console.log(response.error);
+    if (response.error.username) {
+      errorMessages['username'] = response.error.username[0][0].toUpperCase() + 
+      response.error.username[0].slice(1).toLowerCase();
+    };
+    console.log(response.error.username);
+
+    if (response.error.first_name) {
+      errorMessages['first_name'] = response.error.first_name[0][0].toUpperCase() + 
+      response.error.first_name[0].slice(1).toLowerCase();
+    };
+
+    if (response.error.last_name) {
+      errorMessages['last_name'] = response.error.last_name[0][0].toUpperCase() + 
+      response.error.last_name[0].slice(1).toLowerCase();
+    };
+
+    if (response.error.phone_number) {
+      errorMessages['phone_number'] = response.error.phone_number[0][0].toUpperCase() + 
+      response.error.phone_number[0].slice(1).toLowerCase();
+    };
+
+    return { error: errorMessages };
+  }
+
+  return { error: { error : response.error } };
+}
 
 export const verifyEmailAction = async (token, expiry) => {
   try {
@@ -214,7 +247,7 @@ export const updateUserAction = async (id, formData) => {
     const response = await updateUser(id, data);
 
     if (response.error) {
-      return { error: response.error };
+      return updateActionError(response);
     };
 
     return { success: response.success };

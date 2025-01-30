@@ -79,7 +79,7 @@ def check_user_validity(email):
     
     # Check if user is active
     if not user.is_active:
-        return Response({"error": "User is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Account is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is email verified
     if not user.is_email_verified:
@@ -847,8 +847,9 @@ class UserViewSet(ModelViewSet):
         """Permission for CRUD operations."""
         if self.action == 'create': # No permission while creating user
             permission_classes = [AllowAny]
-        elif (self.action == 'activate_user' or self.action == 'deactivate_user' 
-               or self.action == 'delete'): # Only Admins are allowed
+        elif self.action == 'deactivate_user': # Only Admins are allowed
+            permission_classes = [IsAuthenticated]
+        elif (self.action == 'activate_user' or self.action == 'delete'): # Only Admins are allowed
             permission_classes = [IsAuthenticated, IsAdminUser]
         else: # RUD operations need permissions
             permission_classes = [IsAuthenticated]
@@ -1090,7 +1091,7 @@ class UserViewSet(ModelViewSet):
                 {"error": "You cannot deactivate a superuser."},
                 status=status.HTTP_403_FORBIDDEN
             )
-
+        
         deactivated, _ = Group.objects.get_or_create(name="Deactivated")
         user_to_deactivate.groups.clear()
         user_to_deactivate.groups.add(deactivated)
@@ -1223,7 +1224,7 @@ class SocialAuthView(APIView):
                 return user
             
             if not user.is_active:
-                return Response({"error": "User is deactivated. Contact an admin."}, status=400)
+                return Response({"error": "Account is deactivated. Contact your admin."}, status=400)
             
             if user:
                 # Generate JWT tokens for the authenticated user
