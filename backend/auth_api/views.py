@@ -24,7 +24,8 @@ from django.middleware.csrf import get_token
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
-from .pagination import UserPagination
+from .paginations import UserPagination
+from .filters import UserFilter
 from .utils import (
     EmailOtp,
     EmailLink,
@@ -35,7 +36,6 @@ from .serializers import (
     UserImageSerializer,
     UserListSerializer,
     UserActionSerializer,
-    UserFilterSerializer,
     LoginSerializer,
     LogoutSerializer,
     ResendOtpSerializer,
@@ -840,7 +840,7 @@ class UserViewSet(ModelViewSet):
     throttle_scope = 'email_verify'
     renderer_classes = [ViewRenderer]
     filter_backends = [DjangoFilterBackend]
-    filterset_class = UserFilterSerializer
+    filterset_class = UserFilter
     pagination_class = UserPagination
 
     def get_permissions(self):
@@ -995,10 +995,11 @@ class UserViewSet(ModelViewSet):
         if user_to_delete.profile_img and user_to_delete.profile_img.name != default_image_path:
             user_to_delete.profile_img.delete(save=False)
 
+        email = user_to_delete.email
         response = super().destroy(request, *args, **kwargs)
         
         if response.status_code == status.HTTP_204_NO_CONTENT:
-            return Response({"success": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"success": f"User {email} deleted successfully."}, status=status.HTTP_200_OK)
         
         return response
 

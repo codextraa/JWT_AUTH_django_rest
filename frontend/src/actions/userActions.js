@@ -143,20 +143,27 @@ export const requestEmailVerificationAction = async (formData) => {
   }
 };
 
-export const getUsersAction = async () => {
+export const getUsersAction = async (queryParams = {}) => {
   try {
-    const response = await getUsers();
+    const response = await getUsers(queryParams)
 
     if (response.error) {
-      return { error: response.error };
-    };
+      return { error: response.error }
+    }
 
-    return { data: response };
+    return {
+      data: response.results,
+      pagination: {
+        count: response.count,
+        next: response.next ? new URL(response.next).search : null,
+        previous: response.previous ? new URL(response.previous).search : null,
+      },
+    }
   } catch (error) {
-    console.error(error);
+    console.error(error)
     return { error: error.message || "Failed to fetch users." }
   }
-};
+}
 
 export const getUserAction = async (id) => {
   try {

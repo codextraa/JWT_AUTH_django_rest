@@ -76,8 +76,9 @@ export const socialOauth = async (data) => {
   return apiClient.post('/social-auth/', data);
 };
 
-export const getUsers = async () => {
-  return apiClient.get('/users/');
+export const getUsers = async (queryParams = {}) => {
+  const params = new URLSearchParams(queryParams)
+  return apiClient.get(`/users/?${params.toString()}`)
 };
 
 export const getUser = async (id) => {

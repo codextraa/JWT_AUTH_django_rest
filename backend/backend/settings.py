@@ -260,6 +260,7 @@ REST_FRAMEWORK = {
         'password_reset': '1/min',
         'phone_otp': '1/min',
     },
+    'ORDERING_PARAM': 'ordering',
 }
 
 # Simple JWT Settings

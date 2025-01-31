@@ -52,6 +52,8 @@ class UserManager(BaseUserManager):
     
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom User Class"""
+    class Meta:
+        ordering = ['email']
     
     AUTH_PROVIDER = [
         ('email', 'Email'),
