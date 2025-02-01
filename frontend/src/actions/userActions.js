@@ -155,6 +155,7 @@ export const getUsersAction = async (queryParams = {}) => {
       data: response.results,
       pagination: {
         count: response.count,
+        total_pages: response.total_pages,
         next: response.next ? new URL(response.next).search : null,
         previous: response.previous ? new URL(response.previous).search : null,
       },

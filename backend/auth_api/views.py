@@ -1093,9 +1093,6 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        deactivated, _ = Group.objects.get_or_create(name="Deactivated")
-        user_to_deactivate.groups.clear()
-        user_to_deactivate.groups.add(deactivated)
         user_to_deactivate.is_active = False
         user_to_deactivate.save()
 
@@ -1134,9 +1131,6 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        default = Group.objects.get(name="Default")
-        user_to_activate.groups.clear()
-        user_to_activate.groups.add(default)
         user_to_activate.is_active = True
         user_to_activate.save()
 

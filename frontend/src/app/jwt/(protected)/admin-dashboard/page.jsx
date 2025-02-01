@@ -22,10 +22,16 @@ export default function AdminDashboard() {
     group: "",
     is_active: "",
     page: 1,
-    page_size: 0,
+    page_size: "0",
   })
   const [userRole, setUserRole] = useState(null)
+  const [noUser, setNoUser] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [isFiltered, setIsFiltered] = useState(false)
+  const [currentSearch, setCurrentSearch] = useState("")
+  const [currentGroup, setCurrentGroup] = useState("");
+  const [currentStatus, setCurrentStatus] = useState("");
+  const [currentPageSize, setCurrentPageSize] = useState("0");
   const [successMessage, setSuccessMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
 
@@ -45,31 +51,60 @@ export default function AdminDashboard() {
     try {
       const result = await getUsersAction(filters)
       if (result.data) {
-        setUsers(result.data)
-        setPagination(result.pagination)
+        if (result.data.length === 0) {
+          setNoUser(true)
+        } else {
+          setUsers(result.data)
+          setNoUser(false)
+          setPagination(result.pagination)
+        }
       } else if (result.error) {
         setErrorMessage(result.error)
       }
     } catch (error) {
       setErrorMessage("Failed to fetch users.")
     }
+    setLoading(false)
   }
 
   const handleSearch = (searchTerm) => {
+    setLoading(true)
+    setNoUser(false)
     setFilters((prev) => ({ ...prev, search: searchTerm, page: 1 }))
-    setIsFiltered(true)
+    setCurrentSearch(searchTerm)
+    if (searchTerm === "") {
+      setIsFiltered(false)
+    } else {
+      setIsFiltered(true)
+    }
   }
 
   const handleFilterChange = (filterName, value) => {
+    setLoading(true)
+    setNoUser(false)
     setFilters((prev) => ({ ...prev, [filterName]: value, page: 1 }))
-    setIsFiltered(true)
+    switch (filterName) {
+      case "group":
+        setCurrentGroup(value);
+        break;
+      case "is_active":
+        setCurrentStatus(value);
+        break;
+      case "page_size":
+        setCurrentPageSize(value);
+        break;
+    }
   }
 
   const handlePageChange = (newPage) => {
+    setLoading(true)
+    setNoUser(false)
     setFilters((prev) => ({ ...prev, page: newPage }))
   }
 
-  const handleShowAll = () => {
+  const handleResetFilter = () => {
+    setLoading(true)
+    setNoUser(false)
     setFilters({
       search: "",
       group: "",
@@ -78,6 +113,34 @@ export default function AdminDashboard() {
       page_size: "0",
     })
     setIsFiltered(false)
+    setCurrentSearch("")
+    setCurrentGroup("");
+    setCurrentStatus("");
+    setCurrentPageSize("0");
+  }
+
+  const handleAction = async (action, id) => {
+    let updateUser = true
+
+    if (pagination.total_pages !== 1 && 
+      filters.page === pagination.total_pages && 
+      users.length === 1) {
+      setFilters((prev) => ({ ...prev, page: prev.page - 1 }));
+      updateUser = false; // prevent double fetchUser call
+    };
+
+    if (action === "activate") {
+      await handleActivate(id)
+    } else if (action === "deactivate") {
+      await handleDeactivate(id)
+    } else if (action === "delete") {
+      await handleDelete(id)
+    }
+
+    if (updateUser) {
+      fetchUsers()
+    }
+    clearMessages()
   }
 
   const handleActivate = async (id) => {
@@ -91,8 +154,6 @@ export default function AdminDashboard() {
     } catch (error) {
       setErrorMessage("Failed to activate user.")
     }
-    fetchUsers()
-    clearMessages()
   }
 
   const handleDeactivate = async (id) => {
@@ -106,8 +167,6 @@ export default function AdminDashboard() {
     } catch (error) {
       setErrorMessage("Failed to deactivate user.")
     }
-    fetchUsers()
-    clearMessages()
   }
 
   const handleDelete = async (id) => {
@@ -121,8 +180,6 @@ export default function AdminDashboard() {
     } catch (error) {
       setErrorMessage("Failed to delete user.")
     }
-    fetchUsers()
-    clearMessages()
   }
 
   const clearMessages = () => {
@@ -136,18 +193,57 @@ export default function AdminDashboard() {
     return <div>Access Denied. You must be an Admin or Superuser to view this page.</div>
   }
 
+  if (noUser || loading) {
+    return (
+      <div className={styles.dashboard}>
+        <Sidebar 
+        onFilterChange={handleFilterChange} 
+        isFiltered={isFiltered} 
+        isReset={handleResetFilter}
+        currentGroup={currentGroup}
+        currentStatus={currentStatus}
+        currentPageSize={currentPageSize}
+        />
+        <div className={styles.content}>
+          <h1>Admin Dashboard</h1>
+          <div className={styles.controls}>
+            <SearchBar 
+            onSearch={handleSearch}
+            currentSearch={currentSearch}
+            />
+          </div>
+          {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
+          {errorMessage && <div className={styles.errorMessage}>{errorMessage}</div>}
+          {noUser && 
+          <div className={styles.userGrid}>
+            <p>No users found.</p>
+          </div>}
+          {loading && 
+          <div className={styles.userGrid}>
+            <p>Loading...</p>
+          </div>}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.dashboard}>
-      <Sidebar onFilterChange={handleFilterChange} />
+      <Sidebar 
+      onFilterChange={handleFilterChange} 
+      isFiltered={isFiltered} 
+      isReset={handleResetFilter}
+      currentGroup={currentGroup}
+      currentStatus={currentStatus}
+      currentPageSize={currentPageSize}
+      />
       <div className={styles.content}>
         <h1>Admin Dashboard</h1>
         <div className={styles.controls}>
-          <SearchBar onSearch={handleSearch} />
-          {isFiltered && (
-            <button onClick={handleShowAll} className={styles.showAllButton}>
-              Show All
-            </button>
-          )}
+          <SearchBar 
+          onSearch={handleSearch}
+          currentSearch={currentSearch}
+          />
         </div>
         {successMessage && <div className={styles.successMessage}>{successMessage}</div>}
         {errorMessage && <div className={styles.errorMessage}>{errorMessage}</div>}
@@ -157,16 +253,14 @@ export default function AdminDashboard() {
               key={user.id}
               user={user}
               userRole={userRole}
-              onActivate={handleActivate}
-              onDeactivate={handleDeactivate}
-              onDelete={handleDelete}
+              onAction={handleAction}
             />
           ))}
         </div>
         {pagination && (
           <Pagination
             currentPage={filters.page}
-            totalPages={Math.ceil(pagination.count / filters.page_size)}
+            totalPages={pagination.total_pages}
             onPageChange={handlePageChange}
           />
         )}

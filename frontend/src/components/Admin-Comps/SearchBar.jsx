@@ -1,10 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./SearchBar.module.css";
 
 
-export default function SearchBar({ onSearch }) {
+export default function SearchBar({ onSearch, currentSearch }) {
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    setSearchTerm(currentSearch);
+  }, [currentSearch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
