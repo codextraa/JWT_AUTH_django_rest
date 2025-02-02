@@ -238,6 +238,64 @@ export const createUserAction = async (formData) => {
   };
 };
 
+export const createAdminAction = async (formData) => {
+  const email = formData.get("email");
+  const username = formData.get("username");
+  const first_name = formData.get("first_name");
+  const last_name = formData.get("last_name");
+  const phone_number = formData.get("phone_number");
+  const password = formData.get("password");
+  const c_password = formData.get("c_password");
+
+  const errors = {};
+
+  if (!email) {
+    errors.email = "Email is required.";
+  } else if (!email.includes('@')) {
+    errors.email = "Invalid email format.";
+  }
+
+  if (!password) {
+    errors.password = "Password is required.";
+  }
+
+  if (!c_password) {
+    errors.c_password = "Password confirmation is required.";
+  }
+
+  if (password !== c_password) {
+    errors.c_password = "Passwords do not match.";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { error: errors };
+  }
+
+  const data = {
+    email,
+    ...(username && { username }),
+    ...(first_name && { first_name }),
+    ...(last_name && { last_name }),
+    ...(phone_number && { phone_number }),
+    password,
+    c_password,
+    is_staff: true
+  };
+
+  try {
+    const response = await createUser(data);
+
+    if (response.error) {
+      return signUpError(response);
+    };
+    
+    return { success: response.success };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to create user." };
+  };
+};
+
 export const updateUserAction = async (id, formData) => {
   const username = formData.get("username");
   const first_name = formData.get("first_name");

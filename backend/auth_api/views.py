@@ -77,13 +77,13 @@ def check_user_validity(email):
     if user.auth_provider != 'email':
         return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Check if user is active
-    if not user.is_active:
-        return Response({"error": "Account is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
-    
     # Check if user is email verified
     if not user.is_email_verified:
         return Response({"error": "Email is not verified. You must verify your email first"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if user is active
+    if not user.is_active:
+        return Response({"error": "Account is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
     
     return user
 
@@ -117,7 +117,7 @@ def check_user_id(user_id):
     if not user:
         return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
     
-    return user
+    return check_user_validity(user.email)
 
 def create_otp(user_id, email, password):
     # Generate OTP
@@ -525,6 +525,7 @@ class EmailVerifyView(APIView):
         if not user:
             return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         
+        user.is_active = True
         user.is_email_verified = True
         user.save()
         
@@ -901,6 +902,7 @@ class UserViewSet(ModelViewSet):
         if password != c_password:
             return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
             
+        request.data['is_active'] = False
         response = super().create(request, *args, **kwargs)
         
         if response.status_code != status.HTTP_201_CREATED:

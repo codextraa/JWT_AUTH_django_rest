@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createUserAction} from "@/actions/userActions";
+import { createUserAction, createAdminAction } from "@/actions/userActions";
+import { getUserRoleAction } from "@/actions/authActions";
 import { recaptchaVerifyAction } from "@/actions/authActions";
 import { RegisterButton } from "../Buttons/Button";
 import Link from "next/link";
@@ -10,11 +11,20 @@ import styles from "./RegisterForm.module.css";
 
 export default function RegisterForm() {
   const router = useRouter();
+  const [userRole, setUserRole] = useState(null);
   const [errors, setErrors] = useState(null);
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
   useEffect(() => {
     // Dynamically load reCAPTCHA script
+    const fetchUserRole = async () => {
+      const role = await getUserRoleAction();
+      if (role === "Superuser") {
+        setUserRole(role);
+      };
+    };
+    fetchUserRole();
+
     const script = document.createElement('script');
     script.src = 'https://www.google.com/recaptcha/api.js';
     script.async = true;
@@ -49,7 +59,12 @@ export default function RegisterForm() {
       return;
     };
     
-    const result = await createUserAction(formData);
+    let result;
+    if (userRole === "Superuser") {
+      result = await createAdminAction(formData);
+    } else {
+      result = await createUserAction(formData);
+    };
 
     if (typeof grecaptcha !== 'undefined') {
       grecaptcha.reset();
@@ -59,7 +74,11 @@ export default function RegisterForm() {
     if (result.error) {
       setErrors(result.error);
     } else if (result.success) {
-      router.push(`${BASE_ROUTE}/auth/register/success`);
+      if (userRole === "Superuser") {
+        router.push(`${BASE_ROUTE}/admin-dashboard/new-admin/success`);
+      } else {
+        router.push(`${BASE_ROUTE}/auth/register/success`);
+      };
     };
   };
 
@@ -131,9 +150,12 @@ export default function RegisterForm() {
         data-callback="handleRecaptchaCallback"
       ></div>
       <RegisterButton disabled={!isRecaptchaVerified}/>
-      <Link href="/login" className={styles.link}>
-        Have an account? Login
-      </Link>
+      {userRole === "Superuser" ? <Link href={`${BASE_ROUTE}/admin-dashboard`} className={styles.link}>
+        Back to Admin Page
+      </Link> :
+      <Link href={`${BASE_ROUTE}/auth/login`} className={styles.link}>
+        Already have an account? Login
+      </Link>}
     </form>
   );
 };
