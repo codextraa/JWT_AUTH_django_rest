@@ -2,6 +2,8 @@
 import { 
   verifyEmail,
   requestEmailVerification,
+  verifyPhone,
+  requestPhoneVerification,
   getUsers,
   getUser,
   createUser,
@@ -141,6 +143,40 @@ export const requestEmailVerificationAction = async (formData) => {
     console.error(error);
     return { error: error.message || "Failed to send verification link." }
   }
+};
+
+export const verifyPhoneAction = async (fromData) => {
+  const data = {
+    otp: fromData.get("otp"),
+  };
+
+  try {
+    const response = await verifyPhone(data);
+
+    if (response.error) {
+      return { error: response.error };
+    };
+    
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Token expired or invalid." };
+  };
+};
+
+export const requestPhoneVerificationAction = async () => {;
+  try {
+    const response = await requestPhoneVerification({});
+    
+    if (response.error) {
+      return { error: response.error };
+    };
+
+    return { success: true }; 
+  } catch (error) {
+    console.error(error);
+    return { error: error.message || "Failed to send verification link." }
+  };
 };
 
 export const getUsersAction = async (queryParams = {}) => {

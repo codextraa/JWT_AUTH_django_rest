@@ -1,7 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  requestPhoneVerificationAction,
   getUserAction,
   updateUserAction,
   uploadProfileImageAction,
@@ -12,12 +14,17 @@ import { signOut } from "next-auth/react";
 import { BASE_ROUTE } from "@/route";
 import ProfileImage from "../Modals/ProfileImageModal"
 import DeactivateModal from "../Modals/DeactivateModal";
-import { UpdateButton, UploadImageButton } from "../Buttons/Button";
+import {
+  PhoneVerificationRequestButton,
+  UpdateButton, 
+  UploadImageButton
+} from "../Buttons/Button";
 import styles from "./UpdateForm.module.css";
 
 
 export default function UpdatePage({ params }) {
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
+  const [otp, setOtp] = useState(false);
   const [user, setUser] = useState(null);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +33,16 @@ export default function UpdatePage({ params }) {
 
   useEffect(() => {
     fetchUser();
+    const otpRequired = sessionStorage.getItem('otpRequired');
+    const otpExpiry = sessionStorage.getItem('otpExpiry');
+
+    if (!otpRequired || Date.now() > parseInt(otpExpiry, 10)) {
+      sessionStorage.removeItem('otpRequired');
+      sessionStorage.removeItem('otpExpiry');
+      setOtp(false);
+    } else {
+      setOtp(true);
+    }
   }, []);
 
   const fetchUser = async () => {
@@ -79,6 +96,28 @@ export default function UpdatePage({ params }) {
     } else {
       setSuccess("");
       setError(result.error);
+      setUpdateErrors("");
+    };
+  };
+
+  const handlePhoneVerify = async () => {
+    const result = await requestPhoneVerificationAction();
+
+    if (result.error) {
+      setError(result.error);
+      setUpdateErrors("");
+      setSuccess("");
+    } else if (result.success) {
+      setOtp(true);
+      setSuccess(result.success);
+      setError("");
+      setUpdateErrors("");
+      sessionStorage.setItem('otpRequired', 'true');
+      sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
+      router.push(`${BASE_ROUTE}/profile/phone-verify`);
+    } else {
+      setError('Something went wrong, could not send OTP. Try again');
+      setSuccess("");
       setUpdateErrors("");
     };
   };
@@ -141,6 +180,12 @@ export default function UpdatePage({ params }) {
         {updateErrors && updateErrors.phone_number && <p className={styles.error}>{updateErrors.phone_number}</p>}
         <div className={styles.buttons}>
           <UpdateButton />
+          {!user.is_phone_verified && user.phone_number && <PhoneVerificationRequestButton onClick={handlePhoneVerify} />}
+          {otp && (
+          <Link href={`${BASE_ROUTE}/profile/phone-verify`} className={styles.otpButton}>
+            Verify OTP
+          </Link>
+          )}
         </div>
       </form>
       <div className={styles.buttons}>

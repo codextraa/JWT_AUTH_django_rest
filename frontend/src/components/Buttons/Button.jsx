@@ -48,6 +48,21 @@ export const ResendOtpButton = ({ onClick, disabled, timer }) => {
   );
 };
 
+export const PhoneVerificationRequestButton = ({ onClick }) => {
+  const { pending } = useFormStatus();
+
+  return (
+    <button 
+      type="button" 
+      onClick={onClick}
+      disabled={pending} 
+      className={baseStyles.updateButton}
+    >
+      {pending ? 'Verifying...' : 'Verify Phone'}
+    </button>
+  );  
+};
+
 export const EmailVerificationRequestButton = () => {
   const { pending } = useFormStatus();
 

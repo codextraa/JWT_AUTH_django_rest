@@ -6,7 +6,7 @@ export default function OtpPage() {
   return (
     <div className={styles.container}>
       <h1 className={styles.title}>OTP Verification</h1>
-      <OtpForm action='register' />
+      <OtpForm action='phone-verify' />
     </div>
   );
 }

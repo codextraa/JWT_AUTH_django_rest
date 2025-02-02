@@ -136,7 +136,7 @@ class PhoneOtp:
     @classmethod
     def send_otp(cls, email, phone):
         try:
-            phone_otp = cls.generate_otp()
+            # phone_otp = cls.generate_otp()
             # client = Client(cls.TWILIO_ACCOUNT_SID, cls.TWILIO_AUTH_TOKEN)
             
             # client.messages.create(
@@ -144,6 +144,7 @@ class PhoneOtp:
             #     from_=cls.TWILIO_PHONE_NUMBER,
             #     to=phone
             # )
+            phone_otp = 000000 # For testing
         except Exception as e:
             print(e)
             return False
