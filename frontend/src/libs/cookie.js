@@ -18,7 +18,7 @@ export const setSessionCookie = async (data) => {
     // Create a secure cookie
     // Set the secure cookie using Next.js cookies API
     const cookieStore = await cookies();
-    cookieStore.set('session', encryptedSessionData, {
+    cookieStore.set('__Secure-session', encryptedSessionData, {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 60 * 60 * 24, // One day in seconds
@@ -26,7 +26,7 @@ export const setSessionCookie = async (data) => {
       sameSite: 'lax', // Helps prevent CSRF attacks
     });
 
-    return cookieStore.get('session');
+    return cookieStore.get('__Secure-session');
   } catch (error) {
     console.error('Error setting cookie:', error);
     throw new Error('Failed to set session cookie.');
@@ -39,7 +39,7 @@ export const setCSRFCookie = async () => {
   const encryptedSessionData = await encrypt(csrf_token_data);
 
   const cookieStore = await cookies();
-  cookieStore.set('csrf', encryptedSessionData, {
+  cookieStore.set('__Secure-csrftoken', encryptedSessionData, {
     httpOnly: true,
     secure: process.env.HTTPS === 'true', // Secure in production
     maxAge: 60 * 60 * 24, // One day in seconds
@@ -50,7 +50,7 @@ export const setCSRFCookie = async () => {
 
 
 export const updateSessionCookie = async (req) => {
-  const session = req.cookies.get('session');
+  const session = req.cookies.get('__Secure-session');
 
   if (!session) {
     return false;
@@ -76,8 +76,8 @@ export const updateSessionCookie = async (req) => {
 export const deleteSessionCookie = async () => {
   const cookieStore = await cookies();
 
-  if (cookieStore.has('session')) {
-    cookieStore.set('session', '', {
+  if (cookieStore.has('__Secure-session')) {
+    cookieStore.set('__Secure-session', '', {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 0, // Expire the cookie immediately
@@ -90,8 +90,8 @@ export const deleteSessionCookie = async () => {
 export const deleteCSRFCookie = async () => {
   const cookieStore = await cookies();
 
-  if (cookieStore.has('csrf')) {
-    cookieStore.set('csrf', '', {
+  if (cookieStore.has('__Secure-csrftoken')) {
+    cookieStore.set('__Secure-csrftoken', '', {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 0, // Expire the cookie immediately
@@ -103,7 +103,7 @@ export const deleteCSRFCookie = async () => {
 
 export const getCSRFTokenFromSession = async () => {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('csrf'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-csrftoken'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
@@ -124,7 +124,7 @@ export const getCSRFTokenFromSession = async () => {
 
 export const getCSRFTokenExpiryFromSession = async () => {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('csrf'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-csrftoken'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
@@ -145,7 +145,7 @@ export const getCSRFTokenExpiryFromSession = async () => {
 
 export const getUserIdFromSession = async () => {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
@@ -166,7 +166,7 @@ export const getUserIdFromSession = async () => {
 
 export const getUserRoleFromSession = async () => {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
@@ -187,7 +187,7 @@ export const getUserRoleFromSession = async () => {
 
 export const getAccessTokenFromSession = async () =>  {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
   if (!sessionCookie) {
     return null; // No session cookie found
   };
@@ -207,7 +207,7 @@ export const getAccessTokenFromSession = async () =>  {
 
 export const getRefreshTokenFromSession = async () =>  {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
@@ -228,7 +228,7 @@ export const getRefreshTokenFromSession = async () =>  {
 
 export const getAccessTokenExpiryFromSession = async () =>  {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session'); // Retrieve the session cookie
+  const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found

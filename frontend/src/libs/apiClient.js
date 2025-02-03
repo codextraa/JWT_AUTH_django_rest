@@ -14,21 +14,17 @@ export class ApiClient {
     const clonedResponse = response.clone();
 
     if (response.ok) {
-      if (response.status === 204) {
-        return null; // No content
-      }
-
       if (contentType.includes("application/json")) {
         return await response.json(); // Parse JSON response
-      }
+      };
 
       return { data: await response.text() }; // Non-JSON response
-    }
+    };
 
     if (response.status >= 400) {
       if (response.status === 401) {
         return { error: "Unauthorized. Please refresh the page. If this persists, login again." };
-      }
+      };
 
       if (response.status === 429) {
         if (contentType.includes("application/json")) {
@@ -40,16 +36,16 @@ export class ApiClient {
             return { error: `Validation already sent. Please try again in ${match[1]} seconds.` };
           } catch (error) {
             return { error: `Validation already sent. Please try again.` };
-          }
-        }
-      }
+          };
+        };
+      };
 
       if (contentType.includes("application/json")) {
         try {
           const errorData = await response.json();
           if (errorData.errors) {
             return { error: errorData.errors }; // Return specific error
-          }
+          };
         } catch (e) {
           return { error: "Unexpected error occurred." };
         }
@@ -64,8 +60,8 @@ export class ApiClient {
       } catch (err) {
         console.error('Error while reading the error response body:', err);
         return { error: 'Unexpected error occurred. Something went wrong' };
-      }
-    }
+      };
+    };
 
     if (response.status >= 500) {
       return { error: "Server error" }; // Server-side error
@@ -76,17 +72,17 @@ export class ApiClient {
 
   async request(endpoint, method, data = null, additionalOptions = {}, isMultipart = false) {
     const accessToken = await getAccessTokenFromSession();
-    // const csrfToken = await getCSRFTokenFromSession();
+    const csrfToken = await getCSRFTokenFromSession();
     const url = `${this.baseURL}${endpoint}`;
 
     let options = {
       method,
       headers: {
         "Accept": "application/json",
+        "Cookie": `csrftoken=${csrfToken}`,
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        // ...(csrfToken && { "X-CSRFTOKEN": csrfToken }),
+        ...(csrfToken && { "X-CSRFToken" : csrfToken }),
       },
-      credentials: "include",
       ...additionalOptions,
     };
 
@@ -98,7 +94,7 @@ export class ApiClient {
       // For application/json
       options.headers["Content-Type"] = "application/json";
       options.body = JSON.stringify(data);
-    }
+    };
 
     try {
       const response = await fetch(url, options);

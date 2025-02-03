@@ -174,7 +174,7 @@ export default function UpdatePage({ params }) {
         </div>
         {updateErrors && updateErrors.last_name && <p className={styles.error}>{updateErrors.last_name}</p>}
         <div className={styles.formGroup}>
-          <label htmlFor="phone_number">Phone Number</label>
+          <label htmlFor="phone_number">Phone Number{user.is_phone_verified ? " (Verified)" : " (Not Verified)"}</label>
           <input type="tel" id="phone_number" name="phone_number" defaultValue={user.phone_number} />
         </div>
         {updateErrors && updateErrors.phone_number && <p className={styles.error}>{updateErrors.phone_number}</p>}

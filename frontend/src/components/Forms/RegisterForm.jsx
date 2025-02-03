@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createUserAction, createAdminAction } from "@/actions/userActions";
+import { createUserAction } from "@/actions/userActions";
 import { getUserRoleAction } from "@/actions/authActions";
 import { recaptchaVerifyAction } from "@/actions/authActions";
 import { RegisterButton } from "../Buttons/Button";
@@ -61,7 +61,7 @@ export default function RegisterForm() {
     
     let result;
     if (userRole === "Superuser") {
-      result = await createAdminAction(formData);
+      result = await createUserAction(formData, "admin");
     } else {
       result = await createUserAction(formData);
     };

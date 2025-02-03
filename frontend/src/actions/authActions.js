@@ -11,12 +11,31 @@ import {
 import { 
   getUserIdFromSession,
   getUserRoleFromSession,
+  deleteCSRFCookie,
   deleteSessionCookie,
   setSessionCookie,
 } from '@/libs/cookie';
 import { BASE_ROUTE } from '@/route';
 import { redirect } from 'next/navigation';
 
+
+export const getUserIdAction = async() => {
+  try {
+    return await getUserIdFromSession();
+  } catch (error) {
+    console.error(error);
+    return null;
+  };
+};
+
+export const getUserRoleAction = async() => {
+  try {
+    return await getUserRoleFromSession();
+  } catch (error) {
+    console.error(error);
+    return null;
+  };
+};
 
 export async function recaptchaVerifyAction(token) {
   const data = {
@@ -123,28 +142,10 @@ export const logoutAction = async() => {
     // Logout from the backend
     await logout();
     // Delete the CSRF cookie
-    // await deleteCSRFCookie();
+    await deleteCSRFCookie();
     // Delete the session cookie
     await deleteSessionCookie();
     redirect(`${BASE_ROUTE}/login`);
-  } catch (error) {
-    // Throw the NEXT REDIRECT error (otherwise it won't work)
-    throw error;
-  };
-};
-
-export const getUserIdAction = async() => {
-  try {
-    return await getUserIdFromSession();
-  } catch (error) {
-    // Throw the NEXT REDIRECT error (otherwise it won't work)
-    throw error;
-  };
-};
-
-export const getUserRoleAction = async() => {
-  try {
-    return await getUserRoleFromSession();
   } catch (error) {
     // Throw the NEXT REDIRECT error (otherwise it won't work)
     throw error;

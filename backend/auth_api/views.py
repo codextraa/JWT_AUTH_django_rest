@@ -21,6 +21,8 @@ from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.utils.timezone import now
 from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
@@ -159,6 +161,7 @@ def start_throttle(self, throttle_durations, request):
     
 class CSRFTokenView(APIView):
     permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
     
     def get(self, request, *args, **kwargs):
         csrf_token = get_token(request)
@@ -169,6 +172,7 @@ class RecaptchaValidationView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     
+    @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         try:
             recaptcha_token = request.data.get('recaptcha_token')
@@ -238,6 +242,7 @@ class LoginView(APIView):
             ),
         }
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         # Get email and password
         email = request.data.get('email')
@@ -304,6 +309,7 @@ class ResendOtpView(APIView):
             ),
         }
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         # Get email and password
         user_id = request.data.get('user_id')
@@ -354,6 +360,7 @@ class TokenView(TokenObtainPairView):
             ),
         }
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         # Get OTP from the request
         user_id = request.data.get("user_id")
@@ -403,6 +410,7 @@ class TokenView(TokenObtainPairView):
 class RefreshTokenView(TokenRefreshView):
     renderer_classes = [ViewRenderer]
     
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         # Call the parent method to get the response
         try:
@@ -577,6 +585,7 @@ class EmailVerifyView(APIView):
         description="Sends an email verification link to the user with a token.",
         operation_id="send_email_verification_link"
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
         
@@ -633,6 +642,7 @@ class PhoneVerifyView(APIView):
         operation_id="send_otp",
         description="Sends OTP to the user's phone number."
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         user = request.user
         email = user.email
@@ -653,7 +663,8 @@ class PhoneVerifyView(APIView):
         },
         operation_id="verify_otp",
         description="Verifies the OTP provided by the user."
-    )  
+    )
+    @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
         otp = request.data.get("otp")
         
@@ -749,6 +760,7 @@ class PasswordResetView(APIView):
             ),
         },
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         """Password Reset"""
         email = request.data.get('email')
@@ -803,7 +815,8 @@ class PasswordResetView(APIView):
                 response={"type": "object", "properties": {"error": {"type": "string", "example": "Passwords do not match"}}},
             ),
         },
-    )  
+    )
+    @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
         """Password Reset"""
         email = check_token_validity(request)
@@ -878,6 +891,7 @@ class UserViewSet(ModelViewSet):
         if throttle_durations and cached_email and request.method == "POST":
             start_throttle(self, throttle_durations, request)
     
+    @method_decorator(csrf_protect)
     def create(self, request, *args, **kwargs):
         """Create new user and send email verification link."""
         current_user = self.request.user
@@ -926,6 +940,7 @@ class UserViewSet(ModelViewSet):
         )
         
 
+    @method_decorator(csrf_protect)
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile. SuperUser can do anything."""
         current_user = self.request.user
@@ -969,6 +984,7 @@ class UserViewSet(ModelViewSet):
         
         return response
 
+    @method_decorator(csrf_protect)
     def destroy(self, request, *args, **kwargs):
         """Allow only superusers to delete normal or staff users and clean up profile image."""
         current_user = self.request.user
@@ -1022,6 +1038,7 @@ class UserViewSet(ModelViewSet):
         },
         responses={200: UserSerializer},
     )
+    @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])  # detail=True is only for a single user
     def upload_image(self, request, pk=None):
         """Update user profile image"""
@@ -1053,6 +1070,7 @@ class UserViewSet(ModelViewSet):
 
         return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
 
+    @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='deactivate-user')
     def deactivate_user(self, request, pk=None):
         """Deactivate a user (only staff and superuser can do to other users)"""
@@ -1103,6 +1121,7 @@ class UserViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='activate-user')
     def activate_user(self, request, pk=None):
         """Activate a user (only staff and superuser can do this)"""
@@ -1171,6 +1190,7 @@ class LogoutView(APIView):
             ),
         }
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         try:
             # Extract tokens from the request
@@ -1205,6 +1225,7 @@ class SocialAuthView(APIView):
             ),
         }
     )
+    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         token = request.data.get("token")
         provider = request.data.get("provider")
@@ -1242,5 +1263,4 @@ class SocialAuthView(APIView):
             return Response({"error": str(e)}, status=400)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
-        
         

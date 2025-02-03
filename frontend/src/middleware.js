@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   getAccessTokenExpiryFromSession,
   updateSessionCookie,
-  // getCSRFTokenExpiryFromSession,
-  // setCSRFCookie
+  getCSRFTokenExpiryFromSession,
+  setCSRFCookie
 } from "@/libs/cookie";
 import {
   BASE_ROUTE,
@@ -42,10 +42,10 @@ export async function middleware(req) {
     }
   };
 
-  // let csrfToken = await getCSRFTokenExpiryFromSession();
-  // if (!csrfToken) {
-  //   await setCSRFCookie();
-  // }
+  let csrfToken = await getCSRFTokenExpiryFromSession();
+  if (!csrfToken) {
+    await setCSRFCookie();
+  }
 
   if (isAuthRoute) {
     console.log('Handling auth route');

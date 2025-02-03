@@ -108,6 +108,15 @@ class UserSerializer(serializers.ModelSerializer):
             errors = validate_password(password)
             if errors:
                 raise serializers.ValidationError({'password': errors})
+            
+        username = attrs.get('username')
+        if username:
+            if len(username) < 6:
+                raise serializers.ValidationError({'username': 'Username must be at least 6 characters long.'})
+            
+            if get_user_model().objects.filter(username=username).exists():
+                raise serializers.ValidationError({'username': 'Username already exists.'})
+            
         
         attrs = super().validate(attrs)
         
@@ -138,14 +147,11 @@ class UserSerializer(serializers.ModelSerializer):
         return get_user_model().objects.create_user(**validated_data)
     
     def update(self, instance, validated_data):
-        """Update and return an existing user"""        
-        updated = super().update(instance, validated_data)
-        
-        if validated_data.get('phone_number'):
-            instance.is_phone_verified = False
-            instance.save()
-            
-        return updated
+        """Update and return an existing user"""
+        if validated_data.get('phone_number') != instance.phone_number:
+            validated_data['is_phone_verified'] = False
+                
+        return super().update(instance, validated_data)
         
     
 class UserImageSerializer(serializers.ModelSerializer):
