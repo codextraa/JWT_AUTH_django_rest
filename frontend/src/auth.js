@@ -50,8 +50,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       let result;
       if (account.provider === 'google') {
         result = await socialLoginAction("google-oauth2", account.access_token);
-        // console.log('result', result); // For frontend debugging to know where to put the error given by backend
-        // this line should be included after every result variable to understand
       };
 
       if (account.provider === 'facebook') {
@@ -62,12 +60,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         result = await socialLoginAction("github", account.access_token);
       };
 
-      if (result?.error) { // This doesn't work need to fix this
+      if (result?.error) {
         return `${BASE_ROUTE}/auth/login?error=${result.error}`;
       }
 
       return true;
-      // should be false if result fails to return success
     },
     async jwt({ token, account }) {
       if (account) {

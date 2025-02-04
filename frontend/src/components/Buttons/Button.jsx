@@ -1,10 +1,9 @@
 'use client';
 
-import { signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { useState, useRef } from "react";
 import { useFormStatus } from 'react-dom';
 import { logoutAction } from "@/actions/authActions";
-import { BASE_ROUTE } from "@/route";
 import baseStyles from './Button.module.css';
 import socialStyles from './SocialLoginButton.module.css';
 
@@ -14,6 +13,7 @@ export const LoginButton = ({ disabled }) => {
   return (
     <button 
     type="submit" 
+    name="login"
     disabled={disabled || pending} 
     className={baseStyles.loginButton}
     >
@@ -22,7 +22,6 @@ export const LoginButton = ({ disabled }) => {
   );
 };
 
-// both the forms use same form status shouldn't be duplicated
 export const OtpVerifyButton = () => {
   const { pending } = useFormStatus();
 
@@ -93,55 +92,44 @@ export const PasswordResetRequestButton = () => {
   )
 };
 
-function SocialLoginButton({ provider, isDisabled}) {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleClick = async () => {
-    setIsLoading(true);
-    try {
-      await signIn(provider, { redirectTo: `${BASE_ROUTE}` });
-    } catch (error) {
-      console.error("Error during social login:", error);
-    } finally {
-      setIsLoading(false);
-    };
-  };
+function SocialLoginButton({ provider, disabled }) {
+  const { pending } = useFormStatus();
 
   return (
     <button
-      type="button"
-      disabled={isDisabled || isLoading}
+      type="submit"
+      name={provider}
+      disabled={pending || disabled}
       className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
-      onClick={handleClick}
     >
-      {isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}
+      {pending ? `Logging in with ${provider}...` : `Login with ${provider}`}
     </button>
   );
 };
 
-export const GoogleLoginButton = ({ isDisabled }) => {
+export const GoogleLoginButton = ({ disabled }) => {
   return (
     <SocialLoginButton
       provider="google"
-      isDisabled={isDisabled}
+      disabled={disabled}
     />
   );
 };
 
-export const FacebookLoginButton = ({ isDisabled }) => {
+export const FacebookLoginButton = ({ disabled }) => {
   return (
     <SocialLoginButton
       provider="facebook"
-      isDisabled={isDisabled}
+      disabled={disabled}
     />
   );
 };
 
-export const GitHubLoginButton = ({ isDisabled }) => {
+export const GitHubLoginButton = ({ disabled }) => {
   return (
     <SocialLoginButton
       provider="github"
-      isDisabled={isDisabled}
+      disabled={disabled}
     />
   );
 };
