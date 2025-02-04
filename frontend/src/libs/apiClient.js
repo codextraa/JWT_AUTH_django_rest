@@ -83,6 +83,7 @@ export class ApiClient {
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         ...(csrfToken && { "X-CSRFToken" : csrfToken }),
       },
+      credentials: "include",
       ...additionalOptions,
     };
 

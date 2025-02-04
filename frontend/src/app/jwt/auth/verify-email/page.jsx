@@ -3,7 +3,8 @@ import EmailVerificationResult from "@/components/Forms/EmailVerificationResult"
 import styles from "./page.module.css";
 
 export default async function EmailVerificationPage({ searchParams }) {
-  const { token, expiry } = searchParams;
+  const params = await searchParams;
+  const { token, expiry } = params;
   const verificationResult = await verifyEmailAction(token, expiry);
 
   return (

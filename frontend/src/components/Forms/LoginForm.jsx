@@ -25,6 +25,13 @@ export default function LoginForm() {
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
   useEffect(() => {
+    // Check for error parameter in URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlError = searchParams.get('error');
+    if (urlError) {
+      setError(urlError);
+    }
+
     const otpRequired = sessionStorage.getItem('otpRequired');
     const otpExpiry = sessionStorage.getItem('otpExpiry');
 
@@ -140,9 +147,9 @@ export default function LoginForm() {
         )}
       </div>
       <div className={styles.socialLogin}>
-        <GoogleLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
-        <FacebookLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
-        <GitHubLoginButton isDisabled={!isRecaptchaVerified} setError={setError} />
+        <GoogleLoginButton isDisabled={!isRecaptchaVerified} />
+        <FacebookLoginButton isDisabled={!isRecaptchaVerified} />
+        <GitHubLoginButton isDisabled={!isRecaptchaVerified} />
         {/* <InstagramLoginButton /> */}
         {/* <TwitterLoginButton /> */}
         {/* <LinkedInLoginButton /> */}

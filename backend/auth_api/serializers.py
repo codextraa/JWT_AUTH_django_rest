@@ -113,10 +113,6 @@ class UserSerializer(serializers.ModelSerializer):
         if username:
             if len(username) < 6:
                 raise serializers.ValidationError({'username': 'Username must be at least 6 characters long.'})
-            
-            if get_user_model().objects.filter(username=username).exists():
-                raise serializers.ValidationError({'username': 'Username already exists.'})
-            
         
         attrs = super().validate(attrs)
         

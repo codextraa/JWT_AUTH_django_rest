@@ -68,7 +68,7 @@ export default function RegisterForm() {
 
     if (typeof grecaptcha !== 'undefined') {
       grecaptcha.reset();
-    }
+    };
     setIsRecaptchaVerified(false);
     
     if (result.error) {

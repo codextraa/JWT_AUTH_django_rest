@@ -23,7 +23,6 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: 10 * 1024 * 1024,  // Increase limit to 10 MB
-      timeout: 60 * 1000, // Increase timeout to 60 seconds
     },
   },
 };

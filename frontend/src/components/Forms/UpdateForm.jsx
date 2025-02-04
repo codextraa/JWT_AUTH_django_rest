@@ -62,6 +62,16 @@ export default function UpdatePage({ params }) {
   };
 
   const handleUpdate = async (formData) => {
+    if (formData.get('username') === user.username && 
+    formData.get('first_name') === user.first_name &&
+    formData.get('last_name') === user.last_name &&
+    formData.get('phone_number') === user.phone_number) {
+      setSuccess("");
+      setError("No changes found.");
+      setUpdateErrors("");
+      return;
+    }
+
     const params_obj = await params;
     const result = await updateUserAction(params_obj.id, formData);
     if (result.success) {

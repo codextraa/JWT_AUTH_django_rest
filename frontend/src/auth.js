@@ -6,6 +6,7 @@ import GitHubProvider from 'next-auth/providers/github';
 // import TwitterProvider from 'next-auth/providers/twitter';
 // import InstagramProvider from 'next-auth/providers/instagram';
 import { socialLoginAction } from "./actions/authActions";
+import { BASE_ROUTE } from "./route";
  
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -62,7 +63,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       };
 
       if (result?.error) { // This doesn't work need to fix this
-        return { error: result.error };
+        return `${BASE_ROUTE}/auth/login?error=${result.error}`;
       }
 
       return true;

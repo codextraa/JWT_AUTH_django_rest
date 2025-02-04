@@ -17,12 +17,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.utils.timezone import now
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from social_django.utils import load_backend, load_strategy
 from social_core.exceptions import AuthException
 from .renderers import ViewRenderer
@@ -172,7 +171,6 @@ class RecaptchaValidationView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     
-    @method_decorator(csrf_exempt)
     def post(self, request, *args, **kwargs):
         try:
             recaptcha_token = request.data.get('recaptcha_token')
@@ -939,7 +937,6 @@ class UserViewSet(ModelViewSet):
             status=status.HTTP_201_CREATED
         )
         
-
     @method_decorator(csrf_protect)
     def update(self, request, *args, **kwargs):
         """Allow only users to update their own profile. SuperUser can do anything."""
@@ -1225,7 +1222,6 @@ class SocialAuthView(APIView):
             ),
         }
     )
-    @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
         token = request.data.get("token")
         provider = request.data.get("provider")

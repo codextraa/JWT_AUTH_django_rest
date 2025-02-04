@@ -93,42 +93,56 @@ export const PasswordResetRequestButton = () => {
   )
 };
 
-function SocialLoginButton({ provider, isDisabled, icon, setError }) {
+function SocialLoginButton({ provider, isDisabled}) {
   const [isLoading, setIsLoading] = useState(false);
-  const disabled = isDisabled;
 
   const handleClick = async () => {
     setIsLoading(true);
-
-    if (disabled) { // doesn't work properly no error sent back
-      setError("Please verify you are not a robot."); // Pass error to parent
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const result = await signIn(provider, { redirectTo: `${BASE_ROUTE}/auth/login` });
-      if (result?.error) {
-        setError(result.error); // Set error from backend response
-      };
+      await signIn(provider, { redirectTo: `${BASE_ROUTE}` });
     } catch (error) {
       console.error("Error during social login:", error);
-      setError(`Error during ${provider} login. Please try again.`);
     } finally {
       setIsLoading(false);
-    }
+    };
   };
 
   return (
     <button
       type="button"
-      disabled={disabled || isLoading}
+      disabled={isDisabled || isLoading}
       className={`${socialStyles.button} ${socialStyles[provider.toLowerCase()]}`}
       onClick={handleClick}
     >
-      {icon}
-      <span>{isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}</span>
+      {isLoading ? `Logging in with ${provider}...` : `Login with ${provider}`}
     </button>
+  );
+};
+
+export const GoogleLoginButton = ({ isDisabled }) => {
+  return (
+    <SocialLoginButton
+      provider="google"
+      isDisabled={isDisabled}
+    />
+  );
+};
+
+export const FacebookLoginButton = ({ isDisabled }) => {
+  return (
+    <SocialLoginButton
+      provider="facebook"
+      isDisabled={isDisabled}
+    />
+  );
+};
+
+export const GitHubLoginButton = ({ isDisabled }) => {
+  return (
+    <SocialLoginButton
+      provider="github"
+      isDisabled={isDisabled}
+    />
   );
 };
 
@@ -155,40 +169,6 @@ export const LogOutButton = () => {
     >
       <span>{isLoading ? `Logging out...` : `Logout`}</span>
     </button>
-  );
-};
-
-
-export const GoogleLoginButton = ({ isDisabled, setError }) => {
-  return (
-    <SocialLoginButton
-      provider="google"
-      isDisabled={isDisabled}
-      setError={setError}
-      icon={<i className="fab fa-google"></i>}
-    />
-  );
-};
-
-export const FacebookLoginButton = ({ isDisabled, setError }) => {
-  return (
-    <SocialLoginButton
-      provider="facebook"
-      isDisabled={isDisabled}
-      setError={setError}
-      icon={<i className="fab fa-facebook-f"></i>}
-    />
-  );
-};
-
-export const GitHubLoginButton = ({ isDisabled, setError }) => {
-  return (
-    <SocialLoginButton
-      provider="github"
-      isDisabled={isDisabled}
-      setError={setError}
-      icon={<i className="fab fa-github"></i>}
-    />
   );
 };
 
