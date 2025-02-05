@@ -34,6 +34,7 @@ def _set_profile_image(provider, user, response, update=True):
     return user
 
 def user_creation(backend, user, response, *args, **kwargs):
+    """Custom user creation pipeline function."""
     # print('response', response)
     # print('backend name', backend.name)
     # print('user', user)
@@ -103,5 +104,5 @@ def user_creation(backend, user, response, *args, **kwargs):
         return _set_profile_image(backend.name, new_user, response)
 
     except Exception as e:
-        print('An error occurred: ', e)
-        return Response({"error": f"An error occurred: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        print(e)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

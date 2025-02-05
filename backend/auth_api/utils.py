@@ -15,11 +15,13 @@ class EmailOtp:
     
     @staticmethod
     def generate_otp():
+        """Generate a 6 digit OTP."""
         otp = random.randint(100000, 999999)
         return otp
     
     @staticmethod
     def send_email_otp(email, otp):
+        """Send an OTP to the user's email."""
         try:
             email = EmailMessage(
                 subject = '2 Factor Login Authentication',
@@ -34,6 +36,7 @@ class EmailOtp:
         
     @staticmethod
     def verify_otp(user_id, request_otp):
+        """Verify the OTP sent to the user's email."""
         stored_otp = cache.get(f'otp_{user_id}')
         
         try:
@@ -109,6 +112,7 @@ class EmailLink:
         
     @classmethod
     def send_password_reset_link(cls, email):
+        """Send the email with the password reset link."""
         link = cls._generate_link(email, 'password-reset')
         
         try:
@@ -130,11 +134,13 @@ class PhoneOtp:
     
     @classmethod
     def generate_otp(cls):
+        """Generate a 6 digit OTP."""
         otp = random.randint(100000, 999999)
         return otp
     
     @classmethod
     def send_otp(cls, email, phone):
+        """Send an OTP to the user's phone."""
         try:
             # phone_otp = cls.generate_otp()
             # client = Client(cls.TWILIO_ACCOUNT_SID, cls.TWILIO_AUTH_TOKEN)
@@ -155,6 +161,7 @@ class PhoneOtp:
     
     @classmethod
     def verify_otp(cls, phone, request_otp):
+        """Verify the OTP sent to the user's phone."""
         stored_otp = cache.get(f"phone_otp_{phone}")
         
         try:

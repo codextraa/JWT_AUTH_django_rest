@@ -17,6 +17,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 application = get_wsgi_application()
 
 def cleanup_task():
+    """Thread function to clean up expired refresh tokens."""
     while True:
         expired_tokens = OutstandingToken.objects.filter(expires_at__lt=now())
         count = expired_tokens.count()

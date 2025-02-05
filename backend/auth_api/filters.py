@@ -18,4 +18,5 @@ class UserFilter(django_filters.FilterSet):
         return queryset.filter(Q(email__icontains=value) | Q(username__icontains=value))
         
     def filter_by_group(self, queryset, name, value):
+        """FIlter users by group name."""
         return queryset.filter(groups__name__iexact=value.strip())

@@ -158,6 +158,9 @@ class UserImageSerializer(serializers.ModelSerializer):
 
     def validate_profile_img(self, value):
         """Validate profile image"""
+        if not value:
+            raise serializers.ValidationError('Profile image is required.')
+        
         errors = {}
         max_size = 2 * 1024 * 1024 # 2MB
         valid_file_types = ['image/jpeg', 'image/png'] # valid image types
@@ -172,7 +175,10 @@ class UserImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return value
-    
+
+class RecaptchaSerializer(serializers.Serializer):
+    recaptcha_token = serializers.CharField(required=True)    
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
@@ -187,6 +193,9 @@ class TokenRequestSerializer(serializers.Serializer):
     user_id = serializers.CharField(required=True)
     otp = serializers.CharField(required=True)
     
+class RefreshTokenSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=True)
+    
 class PhoneVerificationSerializer(serializers.Serializer):
     otp = serializers.CharField(required=True)
     
@@ -196,6 +205,22 @@ class VerificationThroughEmailSerializer(serializers.Serializer):
 class InputPasswordResetSerializer(serializers.Serializer):
     password = serializers.CharField(required=True)
     c_password = serializers.CharField(required=True)
+    
+class CreateUserSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True)
+    c_password = serializers.CharField(required=True)
+    username = serializers.CharField(required=False)
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
+    phone_number = serializers.CharField(required=False)
+    is_staff = serializers.BooleanField(required=False, default=False)
+    
+class UpdateUserSerializer(serializers.Serializer):
+    first_name = serializers.CharField(required=False)
+    last_name = serializers.CharField(required=False)
+    username = serializers.CharField(required=False)
+    phone_number = serializers.CharField(required=False)
     
 class SocialOAuthSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)

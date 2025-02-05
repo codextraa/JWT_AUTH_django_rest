@@ -37,24 +37,29 @@ from .serializers import (
     UserImageSerializer,
     UserListSerializer,
     UserActionSerializer,
+    RecaptchaSerializer,
     LoginSerializer,
     LogoutSerializer,
     ResendOtpSerializer,
     TokenRequestSerializer,
+    RefreshTokenSerializer,
     PhoneVerificationSerializer,
     PasswordResetSerializer,
     VerificationThroughEmailSerializer,
     InputPasswordResetSerializer,
+    CreateUserSerializer,
+    UpdateUserSerializer,
     SocialOAuthSerializer
 )
 
 
 def check_token_validity(request):
+    """Check if token is valid."""
     token = request.query_params.get('token')
     expiry = request.query_params.get('expiry')
     
     if not token or not expiry:
-        return Response({"error": "Invalid or missing verification link."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Missing verification link."}, status=status.HTTP_400_BAD_REQUEST)
     
     expiry_time = datetime.fromtimestamp(int(expiry), tz=timezone.utc)
     
@@ -69,6 +74,7 @@ def check_token_validity(request):
     return email
     
 def check_user_validity(email):
+    """Check if user is valid using email."""
     user = get_user_model().objects.filter(email=email).first()
         
     # Check if user exists
@@ -104,7 +110,7 @@ def get_user_role(user):
     return user_role
 
 def check_user_id(user_id):
-    """Check if user id exists."""
+    """Check if user id is valid."""
     if not user_id:
         return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -121,7 +127,7 @@ def check_user_id(user_id):
     return check_user_validity(user.email)
 
 def create_otp(user_id, email, password):
-    # Generate OTP
+    """Generate a 6 digit OTP and send it to the user's email."""
     otp = EmailOtp.generate_otp()
     otp_email = EmailOtp.send_email_otp(email, otp)
     
@@ -159,19 +165,99 @@ def start_throttle(self, throttle_durations, request):
     self.throttled(request, duration)
     
 class CSRFTokenView(APIView):
+    """CSRF Token View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     
+    @extend_schema(
+        summary="Get CSRF Token",
+        description="Returns a CSRF token along with its expiration time.",
+        responses={
+            200: OpenApiResponse(
+                description="CSRF token returned",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "csrf_token": {"type": "string", "example": "csrf_token"},
+                        "csrf_token_expiry": {"type": "string", "example": "2023-01-01T00:00:00Z"}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Bad Request - Invalid parameters",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Invalid request parameters"}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     def get(self, request, *args, **kwargs):
-        csrf_token = get_token(request)
-        csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1)
-        return Response({"csrf_token": csrf_token, "csrf_token_expiry": csrf_token_expiry.isoformat()}, status=status.HTTP_200_OK)
+        """Get Method for CSRF Token."""
+        try:
+            csrf_token = get_token(request)
+            csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1)
+            return Response(
+                {"csrf_token": csrf_token, "csrf_token_expiry": csrf_token_expiry.isoformat()},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
 class RecaptchaValidationView(APIView):
+    """Recaptcha Validation View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     
+    @extend_schema(
+        summary="Validate reCAPTCHA",
+        description="Validates the provided reCAPTCHA token with Google's reCAPTCHA service.",
+        request=RecaptchaSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="reCAPTCHA validation successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "reCAPTCHA validation successful."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Bad Request - Invalid reCAPTCHA token or JSON",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Invalid reCAPTCHA token."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     def post(self, request, *args, **kwargs):
+        """Post a request to validate reCAPTCHA. Returns a response with success or error message."""
         try:
             recaptcha_token = request.data.get('recaptcha_token')
             
@@ -194,7 +280,7 @@ class RecaptchaValidationView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LoginView(APIView):
-    """Login to get an otp."""
+    """Login View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -218,53 +304,90 @@ class LoginView(APIView):
             start_throttle(self, throttle_durations, request)
 
     @extend_schema(
+        summary="Login to get an OTP",
+        description="Authenticates the user with email and password. If valid, an OTP is sent to the registered email.",
         request=LoginSerializer,
         responses={
             200: OpenApiResponse(
-                description="Email sent",
+                description="OTP sent successfully",
                 response={
                     "type": "object",
                     "properties": {
-                        "success": {"type": "string", "example": "Email sent"}
-                    }
-                }
+                        "success": {"type": "string", "example": "Email sent"},
+                        "otp": {"type": "boolean", "example": True},
+                        "user_id": {"type": "integer", "example": 1}
+                    },
+                },
             ),
             400: OpenApiResponse(
-                description="Error response",
+                description="Bad Request - Various authentication errors",
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {"type": "string", "example": "Invalid credentials"}
-                    }
-                }
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Invalid credentials",
+                                "Email and password are required",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
+                                "Account is deactivated. Contact your admin",
+                                "Something went wrong, could not send OTP. Try again"
+                            ]
+                        }
+                    },
+                },
             ),
-        }
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        },
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        # Get email and password
-        email = request.data.get('email')
-        password = request.data.get('password')
+        """Post a request to login. Returns an OTP to the registered email."""
+        try:
+            email = request.data.get('email')
+            password = request.data.get('password')
+            
+            if not email or not password:
+                return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user = check_user_validity(email)
+            
+            if isinstance(user, Response):
+                return user
+            
+            # Check if password is correct
+            if not user.check_password(password):
+                return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Generate OTP
+            response = create_otp(user.id, email, password)
+            
+            return response
         
-        if not email or not password:
-            return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = check_user_validity(email)
-        
-        if isinstance(user, Response):
-            return user
-        
-        # Check if password is correct
-        if not user.check_password(password):
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Generate OTP
-        response = create_otp(user.id, email, password)
-        
-        return response
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class ResendOtpView(APIView):
-    """Resend OTP."""
+    """Resend OTP View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -283,10 +406,12 @@ class ResendOtpView(APIView):
             start_throttle(self, throttle_durations, request)
     
     @extend_schema(
+        summary="Resend OTP",
+        description="If the session is valid and the user exists, an OTP is resent to the registered email address.",
         request=ResendOtpSerializer,
         responses={
             200: OpenApiResponse(
-                description="Email sent",
+                description="Email sent successfully",
                 response={
                     "type": "object",
                     "properties": {
@@ -297,42 +422,78 @@ class ResendOtpView(APIView):
                 },
             ),
             400: OpenApiResponse(
-                description="Error response",
+                description="Bad Request - Various errors related to invalid session, user details, etc.",
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {"type": "string", "example": "Invalid credentials"}
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Session expired. Please login again.",
+                                "Invalid Session",
+                                "Invalid credentials",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
+                                "Account is deactivated. Contact your admin",
+                                "Something went wrong, could not send OTP. Try again"
+                            ]
+                        }
                     }
                 }
             ),
-        }
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        },
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        # Get email and password
-        user_id = request.data.get('user_id')
+        """Post a request to resend OTP. Returns an OTP to the registered email."""
+        try:
+            user_id = request.data.get('user_id')
+            
+            user = check_user_id(user_id)
+            
+            if isinstance(user, Response):
+                return user
+            
+            email = cache.get(f"email_{user.id}")
+            password = cache.get(f"password_{user.id}")
+            
+            if not email or not password:
+                return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Generate OTP
+            response = create_otp(user.id, email, password)
+            
+            return response
         
-        user = check_user_id(user_id)
-        
-        if isinstance(user, Response):
-            return user
-        
-        email = cache.get(f"email_{user.id}")
-        password = cache.get(f"password_{user.id}")
-        
-        if not email or not password:
-            return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Generate OTP
-        response = create_otp(user.id, email, password)
-        
-        return response
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class TokenView(TokenObtainPairView):
-    """Generate token after OTP verification."""
+    """Token Generation View after OTP verification."""
     renderer_classes = [ViewRenderer]
 
     @extend_schema(
+        summary="Generate JWT tokens",
+        description="Verifies OTP and generates JWT access and refresh tokens for the authenticated user.",
         request=TokenRequestSerializer,
         responses={
             200: OpenApiResponse(
@@ -340,77 +501,150 @@ class TokenView(TokenObtainPairView):
                 response={
                     "type": "object",
                     "properties": {
+                        "access_token_expiry": {"type": "string", "example": "2023-01-01T00:00:00Z"},
                         "access": {"type": "string", "example": "JWT access token"},
                         "refresh": {"type": "string", "example": "JWT refresh token"},
                         "user_role": {"type": "string", "example": "Admin"},
                         "user_id": {"type": "integer", "example": 1},
-                    }
-                }
+                    },
+                },
             ),
             400: OpenApiResponse(
-                description="Error response",
+                description="Bad Request - Various errors related to OTP verification or session issues",
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {"type": "string", "example": "Invalid OTP"}
-                    }
-                }
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Invalid OTP",
+                                "Session expired. Please login again.",
+                                "Invalid credentials",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
+                                "Account is deactivated. Contact your admin",
+                                "Invalid Session"
+                            ],
+                        },
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         }
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        # Get OTP from the request
-        user_id = request.data.get("user_id")
-        otp_from_request = request.data.pop("otp", None)
-        
-        user = check_user_id(user_id)
-        
-        if isinstance(user, Response):
-            return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Verify OTP
-        otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
-        
-        if not otp_verify:
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        """Post a request to TokenView. Verifies OTP and generates JWT tokens."""
+        try:
+            user_id = request.data.get("user_id")
+            otp_from_request = request.data.pop("otp", None)
+            
+            user = check_user_id(user_id)
+            
+            if isinstance(user, Response):
+                return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verify OTP
+            otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
+            
+            if not otp_verify:
+                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get email and password from the cache
-        email = cache.get(f"email_{user.id}")
-        password = cache.get(f"password_{user.id}")
+            # Get email and password from the cache
+            email = cache.get(f"email_{user.id}")
+            password = cache.get(f"password_{user.id}")
 
-        if not email or not password:
-            return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+            if not email or not password:
+                return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Set email and password in the request
-        request.data['email'] = email
-        request.data['password'] = password
-        
-        # Generate token
-        response = super().post(request, *args, **kwargs)
-        
-        response.data['access_token_expiry'] = (now() + timedelta(minutes=5)).isoformat()
-        
-        cache.delete(f"email_{user.id}")
-        cache.delete(f"password_{user.id}")
-        
-        user_role = get_user_role(user)
-        
-        response.data['user_role'] = user_role
-        response.data['user_id'] = user.id
-        response.data['access_token'] = response.data['access']
-        response.data['refresh_token'] = response.data['refresh']
-        response.data.pop('access')
-        response.data.pop('refresh')
+            # Set email and password in the request
+            request.data['email'] = email
+            request.data['password'] = password
+            
+            # Generate token
+            response = super().post(request, *args, **kwargs)
+            
+            response.data['access_token_expiry'] = (now() + timedelta(minutes=5)).isoformat()
+            
+            cache.delete(f"email_{user.id}")
+            cache.delete(f"password_{user.id}")
+            
+            user_role = get_user_role(user)
+            
+            response.data['user_role'] = user_role
+            response.data['user_id'] = user.id
+            response.data['access_token'] = response.data['access']
+            response.data['refresh_token'] = response.data['refresh']
+            response.data.pop('access')
+            response.data.pop('refresh')
 
-        return response
+            return response
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class RefreshTokenView(TokenRefreshView):
+    """Refresh Token View generates JWT access token using the refresh token."""
     renderer_classes = [ViewRenderer]
     
+    @extend_schema(
+        summary="Refresh JWT access token",
+        description="Refreshes the JWT access token when provided with a valid refresh token. Returns new access and refresh tokens.",
+        request=RefreshTokenSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Token response",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "access_token_expiry": {"type": "string", "example": "2023-01-01T00:00:00Z"},
+                        "access": {"type": "string", "example": "JWT access token"},
+                        "refresh": {"type": "string", "example": "JWT refresh token"},
+                        "user_role": {"type": "string", "example": "Admin"},
+                        "user_id": {"type": "integer", "example": 1},
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Bad Request - Various errors related to OTP verification or session issues",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Tokens are required",
+                                "Invalid tokens",
+                                "Invalid refresh token",
+                            ],
+                        },
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        # Call the parent method to get the response
+        """Post a request to RefreshTokenView. Verifies OTP and generates JWT tokens."""
         try:
             refresh_token = request.data.get("refresh")
             
@@ -446,11 +680,12 @@ class RefreshTokenView(TokenRefreshView):
             response.data.pop('refresh')
             
             return response
+        
         except TokenError as e:
-            return Response({'error': str(e)}, status=400)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class EmailVerifyView(APIView):
-    """View for verifying user's email address after registration."""
+    """Email Verify View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -469,6 +704,7 @@ class EmailVerifyView(APIView):
             start_throttle(self, throttle_durations, request)
     
     @extend_schema(
+        summary="Verify user's email address",
         description="This endpoint verifies the user's email address using a token and expiry time sent during registration.",
         parameters=[
             OpenApiParameter(
@@ -504,13 +740,14 @@ class EmailVerifyView(APIView):
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {
-                            "type": "string",
-                            "examples": [
-                                "Invalid or missing verification link.",
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Missing verification link.",
                                 "The verification link has expired.",
-                                "Invalid token",
-                                "User not found",
+                                "Invalid verification link",
+                                "Invalid credentials",
                             ],
                         }
                     },
@@ -519,28 +756,34 @@ class EmailVerifyView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        """Email Link Verification"""
-        email = check_token_validity(request)
+        """Get the link and check it's validity"""
+        try:
+            email = check_token_validity(request)
 
-        if isinstance(email, Response):
-            return email
+            if isinstance(email, Response):
+                return email
+            
+            user = get_user_model().objects.filter(email=email).first()
+            
+            # Check if user exists
+            if not user:
+                return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user.is_active = True
+            user.is_email_verified = True
+            user.save()
+            
+            return Response({"success": "Email verified successfully"}, status=status.HTTP_200_OK)
         
-        user = get_user_model().objects.filter(email=email).first()
-        
-        # Check if user exists
-        if not user:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user.is_active = True
-        user.is_email_verified = True
-        user.save()
-        
-        return Response({"success": "Email verified successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
-        request=VerificationThroughEmailSerializer,  # Use the VerificationThroughEmailSerializer for email input
+        summary="Send an email verification link",
+        description="This endpoint sends an email verification link to the user's email address.",
+        request=VerificationThroughEmailSerializer, 
         responses={
-            201: OpenApiResponse(
+            200: OpenApiResponse(
                 description="Verification link sent successfully",
                 response={
                     "type": "object",
@@ -557,65 +800,78 @@ class EmailVerifyView(APIView):
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {
-                            "type": "string",
-                            "examples": [
-                                "Invalid email address",
-                                "User not found",
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Invalid credentials",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email already verified",
+                                "Failed to send email verification link.",
+                                "Verification link sent. Please verify your email to activate your account.",
                             ],
                         }
                     },
                 },
             ),
-            500: OpenApiResponse(
-                description="Failed to send email verification link",
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {
-                            "type": "string",
-                            "example": "Failed to send email verification link.",
-                        }
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
                     },
                 },
             ),
         },
-        description="Sends an email verification link to the user with a token.",
-        operation_id="send_email_verification_link"
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        email = request.data.get("email")
-        
-        user = get_user_model().objects.filter(email=email).first()
+        """Post a request to Email Verify View. Email verification link is sent to the user's email."""
+        try: 
+            email = request.data.get("email")
+            
+            user = get_user_model().objects.filter(email=email).first()
 
-        # Check if user exists
-        if not user:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if user.auth_provider != 'email':
-            return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if user.is_email_verified:
-            return Response({"error": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        email_sent = EmailLink.send_email_link(email)
-        
-        if not email_sent:
+            # Check if user exists
+            if not user:
+                return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.auth_provider != 'email':
+                return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if user.is_email_verified:
+                return Response({"error": "Email already verified"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            email_sent = EmailLink.send_email_link(email)
+            
+            if not email_sent:
+                return Response(
+                    {"error": "Failed to send email verification link."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            cache.set(f"email_{email}", email, timeout=60) # Cache email for 10 minutes
+            
             return Response(
-                {"error": "Failed to send email verification link."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": "Verification link sent. Please verify your email to activate your account."},
+                status=status.HTTP_201_CREATED
             )
-        
-        cache.set(f"email_{email}", email, timeout=60) # Cache email for 10 minutes
-        
-        return Response(
-            {"success": "Verification link sent. Please verify your email to activate your account."},
-            status=status.HTTP_201_CREATED
-        )
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class PhoneVerifyView(APIView):
-    """View for verifying user's phone number after registration."""
+    """Phone Verification View."""
     permission_classes = [IsAuthenticated]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -632,57 +888,158 @@ class PhoneVerifyView(APIView):
             start_throttle(self, throttle_durations, request)
     
     @extend_schema(
+        summary="Send OTP to Phone",
+        description="This endpoint sends an OTP to the user's phone number.",
         request=None,
         responses={
-            200: OpenApiResponse(description="OTP sent successfully"),
-            400: OpenApiResponse(description="Failed to send OTP"),
+            200: OpenApiResponse(
+                description="OTP sent successfully",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "OTP sent successfully"},
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Failed to send OTP",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Something went wrong, could not send OTP. Try again",
+                                "Invalid phone number",
+                            ]
+                        }
+                    },
+                },
+            ),
+            401: OpenApiResponse(
+                description="Unauthorized",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Authentication credentials were not provided."}
+                    },
+                },
+            ),
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
         },
-        operation_id="send_otp",
-        description="Sends OTP to the user's phone number."
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        user = request.user
-        email = user.email
-        phone = user.phone_number
-        
-        otp_sent = PhoneOtp.send_otp(email, str(phone))
-        
-        if otp_sent:
-            return Response({"success": "OTP sent successfully"}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        """Post a request to Phone Verify View. OTP is sent to the user's phone number."""
+        try:
+            user = request.user
+            email = user.email
+            phone = user.phone_number
+            
+            otp_sent = PhoneOtp.send_otp(email, str(phone))
+            
+            if otp_sent:
+                return Response({"success": "OTP sent successfully"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Something went wrong, could not send OTP. Try again"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
+        summary="Phone Verification",
+        description="This endpoint verifies the user's phone number using an OTP.",
         request=PhoneVerificationSerializer,  # Use the PhoneVerificationSerializer for OTP input
         responses={
-            200: OpenApiResponse(description="Phone verified successfully"),
-            400: OpenApiResponse(description="Invalid OTP"),
+            200: OpenApiResponse(
+                description="Phone verified successfully",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "Phone verified successfully"},
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid OTP",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "OTP is required",
+                                "Invalid OTP",
+                            ]
+                        }
+                    },
+                },
+            ),
+            401: OpenApiResponse(
+                description="Unauthorized",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Authentication credentials were not provided."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
         },
-        operation_id="verify_otp",
-        description="Verifies the OTP provided by the user."
     )
     @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
-        otp = request.data.get("otp")
-        
-        if not otp:
-            return Response({"error": "OTP is required"}, status=status.HTTP_400_BAD_REQUEST)
+        """Patch a request to Phone Verify View. OTP is sent to the user's phone number."""
+        try:
+            otp = request.data.get("otp")
+            
+            if not otp:
+                return Response({"error": "OTP is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = request.user
-        phone_number = user.phone_number
+            user = request.user
+            phone_number = user.phone_number
+            
+            otp_verified = PhoneOtp.verify_otp(phone_number, otp)
+            
+            if otp_verified:
+                user.is_phone_verified = True
+                user.save()
+                return Response({"success": "Phone verified successfully"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
         
-        otp_verified = PhoneOtp.verify_otp(phone_number, otp)
-        
-        if otp_verified:
-            user.is_phone_verified = True
-            user.save()
-            return Response({"success": "Phone verified successfully"}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class PasswordResetView(APIView):
-    """View for resetting user's password."""
+    """Password Reset View."""
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
@@ -701,7 +1058,7 @@ class PasswordResetView(APIView):
             start_throttle(self, throttle_durations, request)
     
     @extend_schema(
-        operation_id="password_reset_verify_link",
+        summary="Verify Password Reset Link",
         description="Verify the token and expiry provided in the query parameters to validate the password reset link.",
         parameters=[
             OpenApiParameter(
@@ -722,69 +1079,139 @@ class PasswordResetView(APIView):
         responses={
             200: OpenApiResponse(
                 description="Password reset link verified successfully.",
-                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password verification link ok"}}},
+                response={
+                    "type": "object", 
+                    "properties": {
+                        "success": {"type": "string", "example": "Password verification link ok"}
+                    }
+                },
             ),
             400: OpenApiResponse(
                 description="Invalid or expired password reset link.",
-                response={"type": "object", "properties": {"error": {"type": "string", "example": "The verification link has expired."}}},
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Missing verification link.",
+                                "The verification link has expired.",
+                                "The verification link has expired.",
+                                "Invalid verification link."
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         },
     )
     def get(self, request, *args, **kwargs):
-        """Email Link Verification"""
-        email = check_token_validity(request)
+        """Get and validate the password reset link."""
+        try:
+            email = check_token_validity(request)
+            
+            if isinstance(email, Response):
+                return email
+            
+            return Response({"success": "Password verification link ok"}, status=status.HTTP_200_OK)
         
-        if isinstance(email, Response):
-            return email
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        return Response({"success": "Password verification link ok"}, status=status.HTTP_200_OK)
-    
     @extend_schema(
-        operation_id="password_reset_request",
+        summary="Send Password Reset Link",
         description="Send a password reset link to the user's email address if it is verified and active.",
         request=VerificationThroughEmailSerializer,
         responses={
-            201: OpenApiResponse(
+            200: OpenApiResponse(
                 description="Password reset link sent successfully.",
-                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password reset link sent. Please check your email to reset your password."}}},
+                response={
+                    "type": "object", 
+                    "properties": {
+                        "success": {"type": "string", "example": "Password reset link sent. Please check your email to reset your password."}
+                    }
+                },
             ),
             400: OpenApiResponse(
                 description="User not found or email not verified.",
-                response={"type": "object", "properties": {"error": {"type": "string", "example": "User doesn't exist"}}},
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Invalid credentials",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
+                                "Account is deactivated. Contact your admin",
+                                "Failed to send password reset link."
+                            ]
+                        }
+                    },
+                },
+            ),
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
             ),
             500: OpenApiResponse(
-                description="Failed to send password reset link.",
-                response={"type": "object", "properties": {"error": {"type": "string", "example": "Failed to send password reset link."}}},
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         },
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        """Password Reset"""
-        email = request.data.get('email')
-        
-        user = check_user_validity(email)
-        
-        if isinstance(user, Response):
-            return user
-        
-        email_sent = EmailLink.send_password_reset_link(user.email)
-        
-        if not email_sent:
+        """Post a request to Password Reset View. Password reset link is sent to the user's email address."""
+        try:
+            email = request.data.get('email')
+            
+            user = check_user_validity(email)
+            
+            if isinstance(user, Response):
+                return user
+            
+            email_sent = EmailLink.send_password_reset_link(user.email)
+            
+            if not email_sent:
+                return Response(
+                    {"error": "Failed to send password reset link."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            cache.set(f"email_{user.email}", user.email, timeout=60) # Cache email for 10 minutes
+            
             return Response(
-                {"error": "Failed to send password reset link."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": "Password reset link sent. Please check your email to reset your password."},
+                status=status.HTTP_201_CREATED
             )
-        
-        cache.set(f"email_{user.email}", user.email, timeout=60) # Cache email for 10 minutes
-        
-        return Response(
-            {"success": "Password reset link sent. Please check your email to reset your password."},
-            status=status.HTTP_201_CREATED
-        )
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @extend_schema(
-        operation_id="password_reset",
+        summary="Reset Password",
         description="Reset the user's password using the provided token, expiry, and new password. Both passwords must match.",
         parameters=[
             OpenApiParameter(
@@ -806,42 +1233,87 @@ class PasswordResetView(APIView):
         responses={
             200: OpenApiResponse(
                 description="Password reset successful.",
-                response={"type": "object", "properties": {"success": {"type": "string", "example": "Password reset successful"}}},
+                response={
+                    "type": "object", 
+                    "properties": {
+                        "success": {"type": "string", "example": "Password reset successful"}
+                    }
+                },
             ),
             400: OpenApiResponse(
                 description="Invalid or mismatched passwords, or user not valid.",
-                response={"type": "object", "properties": {"error": {"type": "string", "example": "Passwords do not match"}}},
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Missing verification link.",
+                                "The verification link has expired.",
+                                "Invalid credentials",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
+                                "Account is deactivated. Contact your admin",
+                                "Failed to send password reset link.",
+                                "Password is required.",
+                                "Passwords do not match",
+                                "New password cannot be the same as the old password.",
+                                {
+                                    "short": "Password must be at least 8 characters long.",
+                                    "lower": "Password must contain at least one lowercase letter.",
+                                    "upper": "Password must contain at least one uppercase letter.",
+                                    "number": "Password must contain at least one number.",
+                                    "special": "Password must contain at least one special character."
+                                }
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         },
     )
     @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
-        """Password Reset"""
-        email = check_token_validity(request)
+        """Patch a request to Password Reset View. Password is reset using the provided token, expiry, and new password."""
+        try:
+            email = check_token_validity(request)
 
-        if isinstance(email, Response):
-            return email
+            if isinstance(email, Response):
+                return email
+            
+            user = check_user_validity(email)
+            
+            if isinstance(user, Response):
+                return user
+            
+            password = request.data.get('password')
+            c_password = request.data.get('c_password')
+            
+            if password != c_password:
+                return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # password reset serializer
+            serializer = PasswordResetSerializer(instance=user, data={"password": password})
+            
+            if not serializer.is_valid():
+                return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer.save()
+            
+            return Response({"success": "Password reset successful."}, status=status.HTTP_200_OK)
         
-        user = check_user_validity(email)
-        
-        if isinstance(user, Response):
-            return user
-        
-        password = request.data.get('password')
-        c_password = request.data.get('c_password')
-        
-        if password != c_password:
-            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # password reset serializer
-        serializer = PasswordResetSerializer(instance=user, data={"password": password})
-        
-        if not serializer.is_valid():
-            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer.save()
-        
-        return Response({"success": "Password reset successful."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
@@ -854,6 +1326,7 @@ class UserViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = UserFilter
     pagination_class = UserPagination
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_permissions(self):
         """Permission for CRUD operations."""
@@ -888,7 +1361,163 @@ class UserViewSet(ModelViewSet):
 
         if throttle_durations and cached_email and request.method == "POST":
             start_throttle(self, throttle_durations, request)
+            
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        """Disallow PUT operation."""
+        if request.method == 'PUT':
+            return Response(
+                {"error": "PUT operation not allowed."}, 
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+            
+    @extend_schema(
+        summary="Get All Users List",
+        description="List of all users using Pagination and Filters.",
+        responses={
+            200: UserListSerializer,
+            400: OpenApiResponse(
+                description="Bad Request - Invalid parameters",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Invalid request parameters"}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, args, kwargs)
     
+    @extend_schema(
+        summary="Get Single User",
+        description="Get everything of a single user by ID.",
+        responses={
+            200: UserSerializer,
+            400: OpenApiResponse(
+                description="Bad Request - Invalid parameters",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Invalid request parameters"}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Create User",
+        description="Create a new user or admin(only superuser can create).",
+        request=CreateUserSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Creation successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "string", 
+                            "example": "User created successfully. Please verify your email to activate your account."
+                        }
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Please confirm your password.",
+                                "Passwords do not match",
+                                "Failed to send email verification link.",
+                                {
+                                    "email": [
+                                        "user with this email already exists.",
+                                        "Enter a valid email address.",
+                                    ],
+                                    "username": [
+                                        "user with this username already exists.",
+                                        "Username must be at least 6 characters long.",
+                                    ],
+                                    "phone_number": [
+                                        "The phone number entered is not valid."
+                                    ],
+                                    "password": {
+                                        "short": "Password must be at least 8 characters long.",
+                                        "lower": "Password must contain at least one lowercase letter.",
+                                        "upper": "Password must contain at least one uppercase letter.",
+                                        "number": "Password must contain at least one number.",
+                                        "special": "Password must contain at least one special character."
+                                    }
+                                },
+                            ]
+                        }
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to create a superuser. Contact Developer.",
+                                "You do not have permission to create an admin user.",
+                                "Profile Image cannot be updated here. Use the Upload Image Action.",
+                                "Forbidden fields cannot be updated."
+                            ]
+                        }
+                    },
+                },
+            ),
+            429: OpenApiResponse(
+                description="Too Many Requests - Rate limit exceeded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Request was throttled. Expected available in n seconds."}
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     def create(self, request, *args, **kwargs):
         """Create new user and send email verification link."""
@@ -904,6 +1533,21 @@ class UserViewSet(ModelViewSet):
             return Response(
                 {"error": "You do not have permission to create an admin user."},
                 status=status.HTTP_403_FORBIDDEN,
+            )
+            
+        if 'profile_img' in request.data:
+            return Response(
+                {"error": "Profile Image cannot be updated here. Use the Upload Image Action."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if ('slug' in request.data or
+            'is_email_verified' in request.data or
+            'is_phone_verified' in request.data or
+            'is_active' in request.data):
+            return Response(
+                {"error": "Forbidden fields cannot be updated."},
+                status=status.HTTP_403_FORBIDDEN
             )
             
         password = request.data.get('password')
@@ -937,9 +1581,31 @@ class UserViewSet(ModelViewSet):
             status=status.HTTP_201_CREATED
         )
         
+    @extend_schema(
+        summary="Update User (Not Allowed)",
+        description="Update everything of an user (Method Not Allowed)",
+        request=UpdateUserSerializer,
+        responses={
+            405: OpenApiResponse(
+                description="Method Not Allowed",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "PUT operation not allowed."}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     def update(self, request, *args, **kwargs):
-        """Allow only users to update their own profile. SuperUser can do anything."""
+        """Allow only users to update their own profile. SuperUser can update any profile.
+        Patch method allowed, Put method not allowed"""
+        method = self.http_method_not_allowed(request)
+        
+        if method:
+            return method
+        
         current_user = self.request.user
         user = self.get_object()
         
@@ -957,14 +1623,18 @@ class UserViewSet(ModelViewSet):
             
         if 'profile_img' in request.data:
             return Response(
-                {"error": "To update Profile Image, use the Upload Profile button."},
+                {"error": "Profile Image cannot be updated here. Use the Upload Image Action."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        if ('is_active' in request.data or 'is_staff' in request.data 
-            or 'is_superuser' in request.data):
+        if ('slug' in request.data or
+            'is_email_verified' in request.data or
+            'is_phone_verified' in request.data or
+            'is_active' in request.data or 
+            'is_staff' in request.data  or
+            'is_superuser' in request.data):
             return Response(
-                {"error": "You cannot update the is_active, is_staff or is_superuser field."},
+                {"error": "Forbidden fields cannot be updated."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -981,6 +1651,129 @@ class UserViewSet(ModelViewSet):
         
         return response
 
+    @extend_schema(
+        summary="Update User",
+        description="Update an existing user's profile",
+        request=UpdateUserSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Update successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "User profile updated successfully."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                {
+                                    "username": [
+                                        "user with this username already exists.",
+                                        "Username must be at least 6 characters long.",
+                                    ],
+                                    "phone_number": [
+                                        "The phone number entered is not valid."
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You cannot update the email field.",
+                                "Password reset cannot be done without verification link.",
+                                "Profile Image cannot be updated here. Use the Upload Image Action.",
+                                "Forbidden fields cannot be updated.",
+                                "You do not have permission to update this user."
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
+    def partial_update(self, request, *args, **kwargs):
+        """Patch Method for updating user profile"""
+        return super().partial_update(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Delete User",
+        description="Delete a deactivated user",
+        responses={
+            200: OpenApiResponse(
+                description="Deletion successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "User example.com deleted successfully."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "string", 
+                            "example": "You must deactivate the user before deleting it."
+                        }
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Only superusers can delete users.",
+                                "You cannot delete superusers"
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     def destroy(self, request, *args, **kwargs):
         """Allow only superusers to delete normal or staff users and clean up profile image."""
@@ -993,16 +1786,16 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
             
-        if user_to_delete.is_active:
-            return Response(
-                {"error": "You must deactivate the user before deleting it."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         if user_to_delete.is_superuser:
             return Response(
                 {"error": "You cannot delete superusers"},
                 status=status.HTTP_403_FORBIDDEN,
+            )
+            
+        if user_to_delete.is_active:
+            return Response(
+                {"error": "You must deactivate the user before deleting it."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check and delete the profile image if it's not the default image
@@ -1019,7 +1812,7 @@ class UserViewSet(ModelViewSet):
         return response
 
     @extend_schema(
-        operation_id="upload_user_image",
+        summary="Upload Profile Image",
         description="Upload an image for the user's profile",
         request={
             "multipart/form-data": {
@@ -1033,128 +1826,285 @@ class UserViewSet(ModelViewSet):
                 }
             }
         },
-        responses={200: UserSerializer},
+        responses={
+            200: OpenApiResponse(
+                description="Image uploaded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "Image uploaded successfully."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to upload an image for this user.",
+                                {
+                                    "profile_img": [
+                                        'Profile image is required.',
+                                        {
+                                            "size": 'Profile image size should not exceed 2MB.',
+                                            "type": 'Profile image type should be JPEG, PNG'
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
     )
     @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])  # detail=True is only for a single user
     def upload_image(self, request, pk=None):
         """Update user profile image"""
-        user = self.get_object()  # get the user
-        current_user = self.request.user  # Get the user making the request
+        try:
+            user = self.get_object()  # get the user
+            current_user = self.request.user  # Get the user making the request
 
-        # Ensure the request is made by the user themselves or a superuser
-        if current_user.id != user.id and not current_user.is_superuser:
-            return Response(
-                {"error": "You do not have permission to upload an image for this user."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            # Ensure the request is made by the user themselves or a superuser
+            if current_user.id != user.id and not current_user.is_superuser:
+                return Response(
+                    {"error": "You do not have permission to upload an image for this user."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+                
+            default_image_path = 'profile_images/default_profile.jpg'  # Define the default image path
+
+            # Check if the user has an existing image that is not the default image
+            if user.profile_img and user.profile_img.name != default_image_path:
+                # Remove the previous image file
+                user.profile_img.delete(save=False)
             
-        default_image_path = 'profile_images/default_profile.jpg'  # Define the default image path
+            serializer = self.get_serializer(
+                user,
+                data=request.data,
+                partial=True  # Only updating profile_img
+            )
+            serializer.is_valid(raise_exception=True)  # returns 400 if fails
+            serializer.save()
 
-        # Check if the user has an existing image that is not the default image
-        if user.profile_img and user.profile_img.name != default_image_path:
-            # Remove the previous image file
-            user.profile_img.delete(save=False)
+            return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
         
-        serializer = self.get_serializer(
-            user,
-            data=request.data,
-            partial=True  # Only updating profile_img
-        )
-        serializer.is_valid(raise_exception=True)  # returns 400 if fails
-        serializer.save()
+        except Exception as e:
+            return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
-
+    @extend_schema(
+        summary="Deactivate User",
+        description="Deactivate an activated user",
+        responses={
+            200: OpenApiResponse(
+                description="Deactivation successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "User example.com has been deactivated."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "User is already deactivated."}
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to deactivate users.",
+                                "You cannot deactivate yourself as a superuser.",
+                                "You cannot deactivate yourself as a staff. Contact a superuser",
+                                "Only superusers can deactivate staff users.",
+                                "You cannot deactivate a superuser."
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='deactivate-user')
     def deactivate_user(self, request, pk=None):
         """Deactivate a user (only staff and superuser can do to other users)"""
-        user_to_deactivate = self.get_object()
-        current_user = self.request.user
+        try:
+            user_to_deactivate = self.get_object()
+            current_user = self.request.user
 
-        if not user_to_deactivate.is_active:
-            return Response(
-                {"error": "User is already deactivated."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not (current_user.is_superuser or current_user.is_staff):
-            if user_to_deactivate != current_user:
+            if not user_to_deactivate.is_active:
                 return Response(
-                    {"error": "You do not have permission to deactivate users."},
+                    {"error": "User is already deactivated."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not (current_user.is_superuser or current_user.is_staff):
+                if user_to_deactivate != current_user:
+                    return Response(
+                        {"error": "You do not have permission to deactivate users."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+            if user_to_deactivate == current_user and current_user.is_staff:
+                if current_user.is_superuser:
+                    detail = "You cannot deactivate yourself as a superuser."
+                else:
+                    detail = "You cannot deactivate yourself as a staff. Contact a superuser"
+
+                return Response(
+                    {"error": detail},
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-        if user_to_deactivate == current_user and current_user.is_staff:
-            if current_user.is_superuser:
-                detail = "You cannot deactivate yourself as a superuser."
-            else:
-                detail = "You cannot deactivate yourself as a staff. Contact a superuser"
+            if user_to_deactivate.is_staff and not current_user.is_superuser:
+                return Response(
+                    {"error": "Only superusers can deactivate staff users."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if user_to_deactivate.is_superuser:
+                return Response(
+                    {"error": "You cannot deactivate a superuser."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            user_to_deactivate.is_active = False
+            user_to_deactivate.save()
 
             return Response(
-                {"error": detail},
-                status=status.HTTP_403_FORBIDDEN
+                {"success": f"User {user_to_deactivate.email} has been deactivated."},
+                status=status.HTTP_200_OK,
             )
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR,)
 
-        if user_to_deactivate.is_staff and not current_user.is_superuser:
-            return Response(
-                {"error": "Only superusers can deactivate staff users."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if user_to_deactivate.is_superuser:
-            return Response(
-                {"error": "You cannot deactivate a superuser."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        user_to_deactivate.is_active = False
-        user_to_deactivate.save()
-
-        return Response(
-            {"success": f"User {user_to_deactivate.email} has been deactivated."},
-            status=status.HTTP_200_OK,
-        )
-
+    @extend_schema(
+        summary="Activate User",
+        description="Activate a deactivated user",
+        responses={
+            200: OpenApiResponse(
+                description="Activation successful",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "success": {"type": "string", "example": "User example.com has been reactivated."}
+                    },
+                },
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "User is already deactivated."}
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "You do not have permission to activate users.",
+                                "You cannot activate yourself.",
+                                "Only superusers can activate staff users.",
+                            ]
+                        }
+                    },
+                },
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
+            ),
+        }
+    )
     @method_decorator(csrf_protect)
     @action(detail=True, methods=['PATCH'], url_path='activate-user')
     def activate_user(self, request, pk=None):
         """Activate a user (only staff and superuser can do this)"""
-        user_to_activate = self.get_object()
-        current_user = self.request.user
+        try:
+            user_to_activate = self.get_object()
+            current_user = self.request.user
 
-        if user_to_activate.is_active:
+            if user_to_activate.is_active:
+                return Response(
+                    {"error": "User is not deactivated."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not (current_user.is_superuser or current_user.is_staff):
+                return Response(
+                    {"error": "You do not have permission to activate users."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if user_to_activate == current_user:
+                return Response(
+                    {"error": "You cannot activate yourself."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if user_to_activate.is_staff and not current_user.is_superuser:
+                return Response(
+                    {"error": "Only superusers can activate staff users."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            user_to_activate.is_active = True
+            user_to_activate.save()
+
             return Response(
-                {"error": "User is not deactivated."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": f"User {user_to_activate.email} has been reactivated."},
+                status=status.HTTP_200_OK,
             )
-
-        if not (current_user.is_superuser or current_user.is_staff):
-            return Response(
-                {"error": "You do not have permission to activate users."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if user_to_activate == current_user:
-            return Response(
-                {"error": "You cannot activate yourself."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if user_to_activate.is_staff and not current_user.is_superuser:
-            return Response(
-                {"error": "Only superusers can activate staff users."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        user_to_activate.is_active = True
-        user_to_activate.save()
-
-        return Response(
-            {"success": f"User {user_to_activate.email} has been reactivated."},
-            status=status.HTTP_200_OK,
-        )
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class LogoutView(APIView):
     """
@@ -1165,6 +2115,8 @@ class LogoutView(APIView):
     renderer_classes = [ViewRenderer]
 
     @extend_schema(
+        summary="Logout",
+        description="Logout by blacklisting the refresh token.",
         request=LogoutSerializer,
         responses={
             200: OpenApiResponse(
@@ -1181,9 +2133,24 @@ class LogoutView(APIView):
                 response={
                     "type": "object",
                     "properties": {
-                        "error": {"type": "string", "example": "Invalid token"}
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Tokens are required"
+                            ]
+                        }
                     }
                 }
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         }
     )
@@ -1201,14 +2168,17 @@ class LogoutView(APIView):
             token.blacklist()
 
             return Response({"success": "Logged out successfully"}, status=status.HTTP_200_OK)
+        
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class SocialAuthView(APIView):
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
 
     @extend_schema(
+        summary="Social Login",
+        description="Login using social media accounts. (Google, Facebook, GitHub)",
         request=SocialOAuthSerializer,
         responses={
             200: OpenApiResponse(
@@ -1219,6 +2189,34 @@ class SocialAuthView(APIView):
                         "success": {"type": "string", "example": "Logged in successfully"}
                     }
                 }
+            ),
+            400: OpenApiResponse(
+                description="Invalid request",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "example": [
+                                "Token and provider are required",
+                                "Account is deactivated. Contact your admin.",
+                                "Authentication failed, user not found",
+                                "User with this email already created using password. Please login using password.",
+                                "User with this email already created using {auth_provider}. Please login using {auth_provider}."
+                            ]
+                        }
+                    }
+                }
+            ),
+            500: OpenApiResponse(
+                description="Internal Server Error",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Internal Server Error"}
+                    },
+                },
             ),
         }
     )
@@ -1254,9 +2252,9 @@ class SocialAuthView(APIView):
                     "user_id": user.id
                 }, status=200)
             else:
-                return Response({"error": "Authentication failed"}, status=400)
+                return Response({"error": "Authentication failed, user not found."}, status=400)
         except AuthException as e:
-            return Response({"error": str(e)}, status=400)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         

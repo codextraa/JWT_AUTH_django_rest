@@ -1,8 +1,10 @@
 from rest_framework.renderers import JSONRenderer
 
 class ViewRenderer(JSONRenderer):
-
+    """Render Class for All Response."""
+    
     def render(self, data, accepted_media_type=None, renderer_context=None):
+        """Render the response data for error handling."""
         response = renderer_context.get("response", None)
 
         # Check for binary data or non-JSON responses (e.g., images, files)
@@ -20,6 +22,4 @@ class ViewRenderer(JSONRenderer):
             if "errors" not in data:
                 data = {"errors": data}
             
-            data["status_code"] = response.status_code
-
         return super().render(data, accepted_media_type, renderer_context)
