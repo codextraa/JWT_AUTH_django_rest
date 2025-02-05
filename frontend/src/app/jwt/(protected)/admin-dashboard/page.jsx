@@ -70,6 +70,7 @@ export default function AdminDashboard() {
   };
 
   const handleSearch = (searchTerm) => {
+    if (searchTerm === currentSearch) return;
     setLoading(true);
     setNoUser(false);
     setFilters((prev) => ({ ...prev, search: searchTerm, page: 1 }));

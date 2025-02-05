@@ -1039,7 +1039,6 @@ class UserViewSet(ModelViewSet):
     @action(detail=True, methods=['PATCH'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])  # detail=True is only for a single user
     def upload_image(self, request, pk=None):
         """Update user profile image"""
-        print(request.data)
         user = self.get_object()  # get the user
         current_user = self.request.user  # Get the user making the request
 
@@ -1162,6 +1161,7 @@ class LogoutView(APIView):
     Logout by blacklisting the refresh token.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
     renderer_classes = [ViewRenderer]
 
     @extend_schema(

@@ -83,12 +83,10 @@ export const updateActionError = async (response) => {
   if (typeof response.error === "object") {
     const errorMessages = {};
 
-    console.log(response.error);
     if (response.error.username) {
       errorMessages['username'] = response.error.username[0][0].toUpperCase() + 
       response.error.username[0].slice(1).toLowerCase();
     };
-    console.log(response.error.username);
 
     if (response.error.first_name) {
       errorMessages['first_name'] = response.error.first_name[0][0].toUpperCase() + 

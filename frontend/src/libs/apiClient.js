@@ -7,18 +7,33 @@ import {
 export class ApiClient {
   constructor(baseURL) {
     this.baseURL = baseURL;
+    this.lastRequestTimes = new Map(); // Track last request times per endpoint
+    this.THROTTLE_TIME = 2000; // 2 seconds
   };
+
+  async throttle(endpoint) {
+    const now = Date.now();
+    const lastRequestTime = this.lastRequestTimes.get(endpoint) || 0;
+    const timeSinceLastRequest = now - lastRequestTime;
+
+    if (timeSinceLastRequest < this.THROTTLE_TIME) {
+      const waitTime = this.THROTTLE_TIME - timeSinceLastRequest;
+      console.warn(`Throttling: Waiting ${waitTime / 1000} seconds before sending request to ${endpoint}`);
+
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.lastRequestTimes.set(endpoint, Date.now());
+  }
 
   async handleErrors(response) {
     const contentType = response.headers.get("Content-Type") || "";
-    const clonedResponse = response.clone();
+    // const clonedResponse = response.clone();
 
     if (response.ok) {
       if (contentType.includes("application/json")) {
         return await response.json(); // Parse JSON response
       };
-
-      return { data: await response.text() }; // Non-JSON response
     };
 
     if (response.status >= 400) {
@@ -49,18 +64,20 @@ export class ApiClient {
         } catch (e) {
           return { error: "Unexpected error occurred." };
         }
+      } else {
+        return { error: "Unexpected error occurred." };
       }
 
-      try {
-        // Non-JSON error response
-        const errorText = await clonedResponse.text();
+      // try { // only for debugging
+      //   // Non-JSON error response
+      //   const errorText = await clonedResponse.text();
     
-        // Handle the error message here
-        return { error: errorText || 'Unexpected error occurred. Something went wrong' };
-      } catch (err) {
-        console.error('Error while reading the error response body:', err);
-        return { error: 'Unexpected error occurred. Something went wrong' };
-      };
+      //   // Handle the error message here
+      //   return { error: errorText || 'Unexpected error occurred. Something went wrong' };
+      // } catch (err) {
+      //   console.error('Error while reading the error response body:', err);
+      //   return { error: 'Unexpected error occurred. Something went wrong' };
+      // };
     };
 
     if (response.status >= 500) {
@@ -71,6 +88,8 @@ export class ApiClient {
   };
 
   async request(endpoint, method, data = null, additionalOptions = {}, isMultipart = false) {
+    await this.throttle(endpoint);
+
     const accessToken = await getAccessTokenFromSession();
     const csrfToken = await getCSRFTokenFromSession();
     const url = `${this.baseURL}${endpoint}`;

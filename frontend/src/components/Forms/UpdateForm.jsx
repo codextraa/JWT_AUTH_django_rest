@@ -31,7 +31,7 @@ export default function UpdatePage({ params }) {
   const [updateErrors, setUpdateErrors] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
+  useEffect(() => { // In developement react's strict mode calls this twice
     fetchUser();
     const otpRequired = sessionStorage.getItem('otpRequired');
     const otpExpiry = sessionStorage.getItem('otpExpiry');

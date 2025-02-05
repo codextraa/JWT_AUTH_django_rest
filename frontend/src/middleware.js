@@ -15,21 +15,20 @@ import {
 
 
 export async function middleware(req) {
-  console.log("Middleware triggered");
+  console.warn("Middleware triggered");
   const { pathname } = req.nextUrl;
-  console.log('pathname', pathname);
   
   const isPublicRoute = publicRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith(apiRoute);
   const isAuthRoute = pathname.startsWith(authRoute);
 
   if (isPublicRoute) {
-    console.log('Handling public route');
+    console.warn('Handling public route');
     return NextResponse.next(); // Allow access to public routes
   };
 
   if (isApiRoute) {
-    console.log('Handling API route');
+    console.warn('Handling API route');
     return undefined; // Allow access to API routes
   };
 
@@ -49,12 +48,12 @@ export async function middleware(req) {
   }
 
   if (isAuthRoute) {
-    console.log('Handling auth route');
+    console.warn('Handling auth route');
     if (isLoggedIn) {
-      console.log('User is logged in, redirecting to home page');
+      console.warn('User is logged in, redirecting to home page');
       // Avoid redirect loop if already at the login page
       if (pathname === DEFAULT_LOGIN_REDIRECT) {
-        console.log('Skipping middleware for DEFAULT_LOGIN_REDIRECT');
+        console.warn('Skipping middleware for DEFAULT_LOGIN_REDIRECT');
         return NextResponse.next();
       }
       return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, req.url)); // Redirect to homepage or dashboard
@@ -64,10 +63,10 @@ export async function middleware(req) {
 
   // Redirect unauthenticated users from protected routes to the login page
   if (!isLoggedIn) {
-    console.log(`User is not logged in, redirecting to ${BASE_ROUTE}/auth/login`);
+    console.warn(`User is not logged in, redirecting to ${BASE_ROUTE}/auth/login`);
     // Prevent redirect loop if already at the login page
     if (pathname === `${BASE_ROUTE}/auth/login`) {
-      console.log(`Skipping middleware for ${BASE_ROUTE}/auth/login`);
+      console.warn(`Skipping middleware for ${BASE_ROUTE}/auth/login`);
       return NextResponse.next();
     }
     return NextResponse.redirect(new URL(`${BASE_ROUTE}/auth/login`, req.url)); // Redirect to login page
