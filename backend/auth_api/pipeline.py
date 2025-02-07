@@ -63,6 +63,8 @@ def user_creation(backend, user, response, *args, **kwargs):
             email=normalized_email,
             username=normalized_email,  # Using the normalized email as username
             is_active=True,
+            is_staff=False, # Explicitly set to False
+            is_superuser=False, # Explicitly set to False
             is_email_verified=True,
         )
         

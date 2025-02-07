@@ -1,6 +1,7 @@
 import re
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 
 def validate_password(password):
@@ -123,6 +124,7 @@ class UserSerializer(serializers.ModelSerializer):
         
         return attrs
     
+    @extend_schema_field(serializers.CharField())
     def get_profile_img(self, obj):
         if obj.profile_img:
             if obj.profile_img.name.startswith("http"):
