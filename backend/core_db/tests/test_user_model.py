@@ -26,6 +26,8 @@ class UserModelTests(TestCase):
         self.assertTrue(user.check_password(password))
         self.assertTrue(user.is_active)
         self.assertEqual(user.username, email) # checking if username signal is working
+        self.assertEqual(user.is_email_verified, False) # checking if email verified is false
+        self.assertEqual(user.is_phone_verified, False) # checking if phone verified is false
         self.assertIn(default_group, user.groups.all()) # checking if group signal is working
         
     def test_creating_admin_user_with_email(self):
@@ -87,10 +89,12 @@ class UserModelTests(TestCase):
         superuser = get_user_model().objects.create_superuser(email=email, password=password)
 
         # Check that the superuser was created correctly
+        sup_grp = Group.objects.get(name='Superuser')
         self.assertEqual(superuser.email, email)
         self.assertTrue(superuser.is_staff)
         self.assertTrue(superuser.is_superuser)
         self.assertTrue(superuser.is_active)
+        self.assertIn(sup_grp, superuser.groups.all())
         
     def test_create_superuser_without_password(self):
         """Test creating a superuser without password"""
@@ -171,8 +175,8 @@ class UserModelTests(TestCase):
         """Test creating a user with a slug"""
         email = 'test@example.com'
         password = 'Django@123'
-        username = 'test user'
-        slug = 'test-user'
+        username = 'testuser'
+        slug = 'testuser'
 
         user = get_user_model().objects.create_user(
             email = email,
@@ -186,14 +190,14 @@ class UserModelTests(TestCase):
         """Test creating a user with a slug"""
         email = 'test@example.com'
         password = 'Django@123'
-        slug = 'test-user'
+        slug = 'testuser'
 
         user = get_user_model().objects.create_user(
             email = email,
             password = password,
         )
 
-        user.username = 'test user'
+        user.username = 'testuser'
         user.save()
 
         self.assertEqual(user.slug, slug)
