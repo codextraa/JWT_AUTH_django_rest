@@ -116,7 +116,8 @@ def check_user_id(user_id):
     
     try:
         user_id = int(user_id)
-    except ValueError:
+    except Exception as e:
+        # print(e)
         return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
     
     user = get_user_model().objects.filter(id=user_id).first()
@@ -545,26 +546,26 @@ class TokenView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         """Post a request to TokenView. Verifies OTP and generates JWT tokens."""
         try:
-            user_id = request.data.get("user_id")
+            user_id = request.data.pop("user_id", None)
             otp_from_request = request.data.pop("otp", None)
             
             user = check_user_id(user_id)
             
             if isinstance(user, Response):
-                return Response({"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST)
+                return user
             
-            # Verify OTP
-            otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
-            
-            if not otp_verify:
-                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
             # Get email and password from the cache
             email = cache.get(f"email_{user.id}")
             password = cache.get(f"password_{user.id}")
 
             if not email or not password:
                 return Response({"error": "Session expired. Please login again."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verify OTP
+            otp_verify = EmailOtp.verify_otp(user.id, otp_from_request)
+            
+            if not otp_verify:
+                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Set email and password in the request
             request.data['email'] = email
@@ -683,6 +684,9 @@ class RefreshTokenView(TokenRefreshView):
         
         except TokenError as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            # return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
     
 class EmailVerifyView(APIView):
     """Email Verify View."""

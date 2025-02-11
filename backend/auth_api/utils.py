@@ -41,7 +41,8 @@ class EmailOtp:
         
         try:
             request_otp = int(request_otp)
-        except ValueError:
+        except Exception as e:
+            # print(e)
             return False
         
         if stored_otp != request_otp:
