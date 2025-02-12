@@ -2235,10 +2235,9 @@ class SocialAuthView(APIView):
             if isinstance(user, Response):
                 return user
             
-            if not user.is_active:
-                return Response({"error": "Account is deactivated. Contact your admin."}, status=400)
-            
             if user:
+                if not user.is_active:
+                    return Response({"error": "Account is deactivated. Contact your admin."}, status=400)
                 # Generate JWT tokens for the authenticated user
                 refresh = RefreshToken.for_user(user)
                 access_token_expiry = (now() + timedelta(minutes=5)).isoformat()

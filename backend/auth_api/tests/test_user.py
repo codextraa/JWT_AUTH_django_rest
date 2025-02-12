@@ -14,6 +14,7 @@ from rest_framework.exceptions import Throttled
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework.test import APITestCase, APIClient
+from social_core.exceptions import AuthException
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -1475,3 +1476,186 @@ class PublicUserApiTests(APITestCase):
         default_image_path = 'profile_images/default_profile.jpg'
         self.assertEqual(user.profile_img.name, default_image_path)
 
+class SocialAuthViewTests(APITestCase):
+    def setUp(self):
+        self.url = SOCIAL_LOGIN_URL
+        self.token = "valid_token"
+        self.provider = "google-oauth2"
+        self.User = get_user_model()
+        # Create a valid user for success scenarios.
+        self.user = self.User.objects.create_user(
+            email="social@example.com",
+            password="DummyPassword1!"
+        )
+        self.user.auth_provider = "google"
+        self.user.save()
+
+    def get_dummy_backend(self, return_value=None, side_effect=None):
+        """
+        Returns a dummy backend instance with a do_auth() method.
+        If side_effect is provided, calling do_auth() will raise that exception.
+        Otherwise, it returns the value specified by return_value.
+        """
+        DummyBackend = type('DummyBackend', (), {})  # Create a new dummy type.
+        dummy_backend = DummyBackend()
+        if side_effect is not None:
+            def do_auth(token):
+                raise side_effect
+            dummy_backend.do_auth = do_auth
+        else:
+            dummy_backend.do_auth = lambda token: return_value
+        return dummy_backend
+
+    def test_missing_token_or_provider(self):
+        """Test that if token or provider is missing, a 400 error is returned."""
+        # Missing token.
+        response = self.client.post(self.url, {"provider": self.provider}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Token and provider are required")
+        # Missing provider.
+        response = self.client.post(self.url, {"token": self.token}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Token and provider are required")
+
+    def test_backend_returns_response_error(self):
+        """
+        Simulate the social auth pipeline returning a Response error.
+        For example, the pipeline may return a Response if a user with that email
+        already exists with password signup.
+        """
+        error_response = Response(
+            {"error": "User with this email already created using password. Please login using password."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        dummy_backend = self.get_dummy_backend(return_value=error_response)
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                response = self.client.post(
+                    self.url, {"token": self.token, "provider": self.provider}, format="json"
+                )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"],
+                         "User with this email already created using password. Please login using password.")
+
+    def test_account_deactivated(self):
+        """Simulate backend.do_auth returning a user that is deactivated."""
+        deactivated_user = self.user
+        deactivated_user.is_active = False
+        deactivated_user.save()
+        dummy_backend = self.get_dummy_backend(return_value=deactivated_user)
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                response = self.client.post(
+                    self.url, {"token": self.token, "provider": self.provider}, format="json"
+                )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Account is deactivated. Contact your admin.")
+
+    def test_auth_failed_user_not_found(self):
+        """Simulate backend.do_auth returning None (i.e. user not found)."""
+        dummy_backend = self.get_dummy_backend(return_value=None)
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                response = self.client.post(
+                    self.url, {"token": self.token, "provider": self.provider}, format="json"
+                )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Authentication failed, user not found.")
+
+    def test_successful_social_auth(self):
+        """Simulate a successful social authentication returning a valid user."""
+        dummy_backend = self.get_dummy_backend(return_value=self.user)
+        # Patch get_user_role to return a dummy role.
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                with patch('auth_api.views.get_user_role', return_value="User"):
+                    response = self.client.post(
+                        self.url, {"token": self.token, "provider": self.provider}, format="json"
+                    )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access_token", response.data)
+        self.assertIn("refresh_token", response.data)
+        self.assertIn("access_token_expiry", response.data)
+        self.assertIn("user_role", response.data)
+        self.assertIn("user_id", response.data)
+        self.assertEqual(response.data["user_role"], "User")
+        self.assertEqual(response.data["user_id"], self.user.id)
+
+    def test_auth_exception(self):
+        """Simulate that backend.do_auth raises an AuthException."""
+        # Update the side_effect to pass two arguments to AuthException:
+        dummy_backend = self.get_dummy_backend(side_effect=AuthException(self.provider, "Social auth error"))
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                response = self.client.post(
+                    self.url, {"token": self.token, "provider": self.provider}, format="json"
+                )
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data["error"], "Social auth error")
+
+    def test_generic_exception(self):
+        """Simulate that a generic exception is raised in the try block."""
+        dummy_backend = self.get_dummy_backend(side_effect=Exception("Generic error"))
+        with patch('auth_api.views.load_strategy', return_value="dummy_strategy"):
+            with patch('auth_api.views.load_backend', return_value=dummy_backend):
+                response = self.client.post(
+                    self.url, {"token": self.token, "provider": self.provider}, format="json"
+                )
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.data["error"], "Generic error")
+
+class LogoutViewTests(APITestCase):
+    def setUp(self):
+        self.url = LOGOUT_URL
+        self.user_model = get_user_model()
+        # Create a test user (adjust required fields as per your user model)
+        self.user = self.user_model.objects.create_user(
+            email="test@example.com",
+            password="TestPassword1!"
+        )
+        # Generate a valid refresh token for the user
+        self.refresh_token = str(RefreshToken.for_user(self.user))
+    
+    def test_logout_success(self):
+        """
+        Test that providing a valid refresh token blacklists the token
+        and returns a 200 response with a success message.
+        """
+        response = self.client.post(self.url, {"refresh": self.refresh_token}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(response.data["success"], "Logged out successfully")
+    
+    def test_logout_missing_refresh_token(self):
+        """
+        Test that when no refresh token is provided,
+        the view returns a 400 error with the expected message.
+        """
+        response = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Tokens are required")
+    
+    def test_logout_invalid_refresh_token(self):
+        """
+        Test that providing an invalid refresh token results in a 500 error.
+        (This test assumes that RefreshToken() will throw an exception
+        when given an invalid token.)
+        """
+        invalid_token = "invalidtoken"
+        response = self.client.post(self.url, {"refresh": invalid_token}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("error", response.data)
+        # The error message might vary; check that it indicates an issue with token validity.
+        self.assertIn("Token is invalid or expired", response.data["error"])
+    
+    def test_logout_blacklist_failure(self):
+        """
+        Test that if token.blacklist() fails (simulated via patch),
+        the view catches the exception and returns a 500 error.
+        """
+        with patch.object(RefreshToken, 'blacklist', side_effect=Exception("Blacklist failed")):
+            response = self.client.post(self.url, {"refresh": self.refresh_token}, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Blacklist failed")
