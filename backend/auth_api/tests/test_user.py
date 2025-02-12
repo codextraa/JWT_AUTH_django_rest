@@ -1454,28 +1454,298 @@ class PasswordResetViewTests(APITestCase):
             self.assertTrue(self.user.check_password(new_password))
 
 class PublicUserApiTests(APITestCase):
-    """Test the public feature of user API"""
-    
     def setUp(self):
         self.client = APIClient()
+        self.url = USER_URL
         
+    def tearDown(self):
+        cache.clear()
+
     def test_create_user_success(self):
-        """Test creating a user is successful"""
+        """Test creating a user successfully."""
         payload = {
             'email': 'test@example.com',
             'password': 'Django@123',
-            'c_password': 'Django@123'
+            'c_password': 'Django@123',
         }
-
-        res = self.client.post(USER_URL, payload, format='json')
+        res = self.client.post(self.url, payload, format='json')
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         user = get_user_model().objects.get(email=payload['email'])
         self.assertTrue(user.check_password(payload['password']))
         self.assertNotIn('password', res.data)
-
+        # Expect default profile image if none provided.
         default_image_path = 'profile_images/default_profile.jpg'
         self.assertEqual(user.profile_img.name, default_image_path)
+        
+    # Will be private test
+    def test_create_admin_success(self):
+        """Test creating an admin user successfully."""
+        superuser = get_user_model().objects.create_superuser(
+            email="super@example.com",
+            password="Django@123"
+        )
+        self.token = str(RefreshToken.for_user(superuser).access_token)
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token)
+        payload = {
+            'email': 'test1@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'is_staff': True
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user = get_user_model().objects.get(email=payload['email'])
+        self.assertTrue(user.check_password(payload['password']))
+        self.assertTrue(user.is_staff)
+        self.assertNotIn('password', res.data)
 
+    def test_create_user_missing_c_password(self):
+        """Test that creating a user without c_password returns an error."""
+        payload = {
+            'email': 'test2@example.com',
+            'password': 'Django@123',
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data['error'], "Please confirm your password.")
+
+    def test_create_user_passwords_do_not_match(self):
+        """Test that mismatched password and c_password return an error."""
+        payload = {
+            'email': 'test3@example.com',
+            'password': 'Django@123',
+            'c_password': 'Mismatch@123',
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data['error'], "Passwords do not match")
+
+    def test_create_user_forbidden_superuser_field(self):
+        """Test that providing is_superuser in the payload returns a 403 error."""
+        payload = {
+            'email': 'test4@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'is_superuser': True,
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            res.data['error'],
+            "You do not have permission to create a superuser. Contact Developer."
+        )
+
+    def test_create_user_forbidden_staff_field(self):
+        """Test that providing is_staff (for non-superuser) returns a 403 error."""
+        payload = {
+            'email': 'test5@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'is_staff': True,
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res.data['error'], "You do not have permission to create an admin user.")
+
+    def test_create_user_forbidden_profile_img(self):
+        """Test that providing profile_img in create returns a 403 error."""
+        payload = {
+            'email': 'test6@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'profile_img': "some_image.png"
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            res.data['error'],
+            "Profile Image cannot be updated here. Use the Upload Image Action."
+        )
+
+    def test_create_user_forbidden_fields(self):
+        """Test that including forbidden fields (slug, is_email_verified, etc.) returns a 403 error."""
+        payload = {
+            'email': 'test7@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'slug': 'some-slug'
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res.data['error'], "Forbidden fields cannot be updated.")
+
+    def test_create_user_with_invalid_email(self):
+        payload = {
+            'email': 'x',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Enter a valid email address", json.dumps(res.data['email']))
+    
+    def test_create_user_with_already_created_email_username(self):
+        payload = {
+            'email': 'test1@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'username': 'test1@example.com',
+        }
+        with patch('auth_api.views.check_throttle_duration', return_value=None):
+            old_res = self.client.post(self.url, payload, format='json')
+            self.assertEqual(old_res.status_code, status.HTTP_201_CREATED)
+            new_res = self.client.post(self.url, payload, format='json')
+            self.assertEqual(new_res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("user with this email already exists.", json.dumps(new_res.data['email']))
+            self.assertIn("user with this username already exists.", json.dumps(new_res.data['username']))
+            
+    def test_create_user_with_invalid_phone(self):
+        payload = {
+            'email': 'test9@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'phone_number': '12334455667'
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("The phone number entered is not valid.", json.dumps(res.data['phone_number']))
+        
+    def test_create_user_short_username(self):
+        """Test that a username shorter than 6 characters returns a serializer error."""
+        payload = {
+            'email': 'test10@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'username': 'usr'
+        }
+        res = self.client.post(self.url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Username must be at least 6 characters long", json.dumps(res.data['username']))
+
+    def test_password_reset_patch_weak_password(self):
+        """
+        Test that if the new password is too weak (e.g. too short),
+        the serializer raises a validation error with details from validate_password.
+        """
+        payload = {
+            'email': 'test11@example.com',
+            'password': 'weak',
+            'c_password': 'weak',
+        }
+        response = self.client.post(self.url, payload, format='json')
+        pass_error = response.data['password']
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual("Password must be at least 8 characters long.", pass_error['short'])
+        self.assertEqual("Password must contain at least one uppercase letter.", pass_error['upper'])
+        self.assertEqual("Password must contain at least one number.", pass_error['number'])
+        self.assertEqual("Password must contain at least one special character.", pass_error['special'])
+        #Lowercase can also be checked but not necessary as these errors are part of the same group
+
+    def test_create_user_throttled(self):
+        """Simulate throttling on user creation when the email is already cached."""
+        payload = {
+            'email': 'test12@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+        }
+        # Pre-populate the cache for this email.
+        cache.set(f"email_{payload['email']}", payload['email'], timeout=60)
+        with patch('auth_api.views.start_throttle', side_effect=Throttled(detail="Request was throttled. Expected available in 10 seconds.")):
+            with patch('auth_api.views.check_throttle_duration', return_value=10):
+                res = self.client.post(self.url, payload, format='json')
+                self.assertEqual(res.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+                self.assertIn("Request was throttled", res.data.get("detail", ""))
+                
+    def test_create_user_email_link_failure(self):
+        """
+        Test that if EmailLink.send_email_link returns False,
+        the user creation view returns a 500 error with the appropriate error message.
+        """
+        payload = {
+            'email': 'testfailure@example.com',
+            'password': 'Django@123',
+            'c_password': 'Django@123',
+            'username': 'testuserfailure'
+        }
+        # Patch EmailLink.send_email_link to simulate failure
+        with patch('auth_api.views.EmailLink.send_email_link', return_value=False):
+            res = self.client.post(USER_URL, payload, format='json')
+        
+        self.assertEqual(res.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(res.data["error"], "Failed to send email verification link.")
+
+    def test_list_users_unauthorized(self):
+        """Test that listing users without authentication returns 401 Unauthorized."""
+        res = self.client.get(USER_URL, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_retrieve_user_unauthorized(self):
+        """Test that retrieving a user without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth@example.com",
+            password="Password@123",
+            username="unauthuser"
+        )
+        url = detail_url(user.id)
+        res = self.client.get(url, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_user_unauthorized(self):
+        """Test that updating a user without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth2@example.com",
+            password="Password@123",
+            username="unauthuser2"
+        )
+        url = detail_url(user.id)
+        res = self.client.patch(url, {"first_name": "NewName"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_destroy_user_unauthorized(self):
+        """Test that deleting a user without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth3@example.com",
+            password="Password@123",
+            username="unauthuser3"
+        )
+        url = detail_url(user.id)
+        res = self.client.delete(url, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_upload_image_unauthorized(self):
+        """Test that uploading an image without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth4@example.com",
+            password="Password@123",
+            username="unauthuser4"
+        )
+        # Assuming the upload image endpoint is defined as /api/users/<id>/upload-image/
+        url = image_upload_url(user.id)
+        res = self.client.patch(url, {}, format="multipart")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_deactivate_user_unauthorized(self):
+        """Test that deactivating a user without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth5@example.com",
+            password="Password@123",
+            username="unauthuser5"
+        )
+        url = deactivate_user_url(user.id)
+        res = self.client.patch(url, {}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_activate_user_unauthorized(self):
+        """Test that activating a user without authentication returns 401 Unauthorized."""
+        user = get_user_model().objects.create_user(
+            email="unauth6@example.com",
+            password="Password@123",
+            username="unauthuser6"
+        )
+        url = activate_user_url(user.id)
+        res = self.client.patch(url, {}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+    
 class SocialAuthViewTests(APITestCase):
     def setUp(self):
         self.url = SOCIAL_LOGIN_URL
