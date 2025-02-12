@@ -10,6 +10,7 @@ from django.utils.timezone import now, timedelta
 from PIL import Image
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.exceptions import Throttled
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework.test import APITestCase, APIClient
@@ -75,9 +76,8 @@ class CSRFTokenViewTests(APITestCase):
         except ValueError:
             self.fail("csrf_token_expiry is not a valid datetime format")
 
-        now = datetime.now(timezone.utc)
-        expected_expiry_min = now + timedelta(days=0.9)
-        expected_expiry_max = now + timedelta(days=1.1)  # Give a bit of leeway
+        expected_expiry_min = now() + timedelta(days=0.9)
+        expected_expiry_max = now() + timedelta(days=1.1)  # Give a bit of leeway
 
         self.assertTrue(expected_expiry_min <= expiry <= expected_expiry_max, "Expiry is not approximately 1 day from now")
 
@@ -796,6 +796,661 @@ class RefreshTokenViewTests(APITestCase):
         response = self.client.post(self.refresh_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)  # Or 401
         self.assertIn("error", response.data)
+
+class EmailVerifyViewTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = VERIFY_EMAIL_URL
+        self.user_model = get_user_model()
+        self.valid_email = "test@example.com"
+        self.password = "Test@123"
+        # Create a user with auth_provider 'email' that is not yet verified.
+        self.user = self.user_model.objects.create_user(
+            email=self.valid_email,
+            password=self.password,
+            auth_provider='email',
+            is_email_verified=False,
+            is_active=False
+        )
+    
+    def tearDown(self):
+        cache.clear()
+
+    # ─── GET METHOD TESTS ─────────────────────────────────────────────────────────
+
+    @patch('auth_api.views.check_token_validity')
+    def test_email_verify_get_success(self, mock_check_token_validity):
+        """
+        When the token is valid and a matching user exists,
+        the GET request should verify the email and return success.
+        """
+        # Simulate a valid token check by returning the email.
+        mock_check_token_validity.return_value = self.valid_email
+
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': 1234567890})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(response.data["success"], "Email verified successfully")
+        # Check that the user record is updated.
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+        self.assertTrue(self.user.is_email_verified)
+
+    @patch('auth_api.views.check_token_validity')
+    def test_email_verify_get_invalid_user(self, mock_check_token_validity):
+        """
+        If check_token_validity returns an email for which no user exists,
+        the view should return a 400 error with "Invalid credentials".
+        """
+        non_existing_email = "nonexistent@example.com"
+        mock_check_token_validity.return_value = non_existing_email
+
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': 9999999999})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Invalid credentials")
+
+    @patch('auth_api.views.check_token_validity')
+    def test_email_verify_get_token_returns_response(self, mock_check_token_validity):
+        """
+        If check_token_validity returns a Response (indicating an error),
+        the view should immediately return that Response.
+        """
+        error_response = Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+        mock_check_token_validity.return_value = error_response
+
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': 9999999999})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Invalid or expired token")
+
+    # ─── Tests That Let check_token_validity Run Its Logic ─────────────────────
+
+    def test_email_verify_get_missing_token(self):
+        """
+        If no token is provided, check_token_validity should return an error.
+        """
+        response = self.client.get(self.url, {'expiry': 9999999999})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Missing verification link.")
+
+    def test_email_verify_get_missing_expiry(self):
+        """
+        If no expiry is provided, check_token_validity should return an error.
+        """
+        response = self.client.get(self.url, {'token': 'dummy'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Missing verification link.")
+
+    def test_email_verify_get_expired_link(self):
+        """
+        If the expiry time is in the past, check_token_validity should return an error.
+        """
+        past_timestamp = int((now() - timedelta(seconds=10)).timestamp())
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': past_timestamp})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "The verification link has expired.")
+
+    def test_email_verify_get_invalid_token_valueerror(self):
+        """
+        If EmailLink.verify_link raises a ValueError (e.g., invalid signature),
+        check_token_validity should catch it and return an error response.
+        """
+        with patch('auth_api.views.EmailLink.verify_link', side_effect=ValueError("Invalid verification link")):
+            future_timestamp = int((now() + timedelta(seconds=60)).timestamp())
+            response = self.client.get(self.url, {'token': 'dummy', 'expiry': future_timestamp})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Invalid verification link")
+
+    @patch('auth_api.views.check_token_validity')
+    def test_email_verify_get_exception(self, mock_check_token_validity):
+        """
+        If check_token_validity raises an exception, the view should return a 500 error.
+        """
+        mock_check_token_validity.side_effect = Exception("Simulated exception")
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': 1234567890})
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Simulated exception")
+
+    # ─── POST METHOD TESTS ─────────────────────────────────────────────────────────
+
+    def test_email_verify_post_success(self):
+        """
+        When a valid email is provided for a user who is not yet verified,
+        and EmailLink.send_email_link returns True,
+        the view should send the verification link and return a 201 response.
+        """
+        with patch('auth_api.views.EmailLink.send_email_link', return_value=True) as mock_send_email:
+            data = {"email": self.valid_email}
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertIn("success", response.data)
+            self.assertEqual(
+                response.data["success"],
+                "Verification link sent. Please verify your email to activate your account."
+            )
+            # Verify that the email is cached.
+            cached_email = cache.get(f"email_{self.valid_email}")
+            self.assertEqual(cached_email, self.valid_email)
+
+    def test_email_verify_post_user_not_found(self):
+        """
+        If the provided email does not match any user,
+        the view should return a 400 error with "Invalid credentials".
+        """
+        data = {"email": "unknown@example.com"}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Invalid credentials")
+
+    def test_email_verify_post_wrong_auth_provider(self):
+        """
+        If the user exists but was created with a different auth provider,
+        the view should return a 400 error indicating that the process cannot be used.
+        """
+        # Create a user with a different auth provider.
+        other_email = "other@example.com"
+        user2 = self.user_model.objects.create_user(
+            email=other_email,
+            password="Test@123",
+            auth_provider="google",
+            is_email_verified=False
+        )
+        data = {"email": other_email}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        expected_error = f"This process cannot be used, as user is created using {user2.auth_provider}"
+        self.assertEqual(response.data["error"], expected_error)
+
+    def test_email_verify_post_already_verified(self):
+        """
+        If the user is already verified, the view should return a 400 error.
+        """
+        # Create a user that is already verified.
+        verified_email = "verified@example.com"
+        self.user_model.objects.create_user(
+            email=verified_email,
+            password="Test@123",
+            auth_provider="email",
+            is_email_verified=True
+        )
+        data = {"email": verified_email}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Email already verified")
+
+    def test_email_verify_post_email_link_fail(self):
+        """
+        If EmailLink.send_email_link fails (returns False),
+        the view should return a 500 error.
+        """
+        with patch('auth_api.views.EmailLink.send_email_link', return_value=False):
+            data = {"email": self.valid_email}
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data["error"], "Failed to send email verification link.")
+            
+    def test_email_verify_post_throttled(self):
+        """
+        Test that when throttle conditions are met, the view returns a 429 error.
+        We simulate this by:
+          1. Caching the email (so that `cached_email` is truthy).
+          2. Patching `check_throttle_duration` to return a non-empty value.
+          3. Patching `start_throttle` to raise a Throttled exception.
+        """
+        # Pre-populate the cache so that the view sees a cached email.
+        cache.set(f"email_{self.valid_email}", self.valid_email, timeout=60)
+        data = {"email": self.valid_email}
+        # Patch both throttle-related functions.
+        with patch('auth_api.views.check_throttle_duration', return_value=10):
+            with patch('auth_api.views.start_throttle', side_effect=Throttled(detail="Request was throttled. Expected available in 10 seconds.")):
+                response = self.client.post(self.url, data, format="json")
+                self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+    def test_email_verify_post_exception(self):
+        """
+        If an exception occurs during processing the POST request,
+        the view should return a 500 error with the exception message.
+        """
+        with patch('auth_api.views.get_user_model') as mock_get_user_model:
+            mock_get_user_model.side_effect = Exception("Simulated exception in post")
+            data = {"email": self.valid_email}
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data["error"], "Simulated exception in post")
+
+class PublicPhoneVerifyViewTests(APITestCase):
+    def setUp(self):
+        self.url = VERIFY_PHONE_URL
+        self.client = APIClient()
+        
+    def test_phone_verify_post_unauthenticated(self):
+        """
+        Test that an unauthenticated request to send an OTP returns 401 Unauthorized.
+        """
+        # Do not authenticate the client.
+        response = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+    def test_phone_verify_patch_unauthenticated(self):
+        """
+        Test that an unauthenticated request to verify an OTP returns 401 Unauthorized.
+        """
+        data = {"otp": "0"}
+        response = self.client.patch(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+class PrivatePhoneVerifyViewTests(APITestCase):
+    def setUp(self):
+        self.url = VERIFY_PHONE_URL
+        self.user_model = get_user_model()
+        # Create a test user with a phone_number and not yet verified.
+        self.user = self.user_model.objects.create_user(
+            email="test@example.com",
+            password="Test@123",
+            auth_provider="email",
+            is_phone_verified=False,
+        )
+        # Set a phone number for the user. (Assume your user model has a phone_number field.)
+        self.user.phone_number = "+8801912345678"
+        self.user.save()
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_phone_verify_post_success(self):
+        """
+        Test that a logged‑in user receives an OTP successfully.
+        The view should return a 200 response with success message.
+        """
+        response = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(response.data["success"], "OTP sent successfully")
+        # Verify that an OTP was stored in the cache.
+        otp = cache.get(f"phone_otp_{self.user.phone_number}")
+        self.assertIsNotNone(otp)
+
+    def test_phone_verify_post_fail(self):
+        """
+        If PhoneOtp.send_otp returns False, the view should return a 400 error.
+        """
+        with patch('auth_api.views.PhoneOtp.send_otp', return_value=False):
+            response = self.client.post(self.url, {}, format="json")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Something went wrong, could not send OTP. Try again")
+
+    def test_phone_verify_post_exception(self):
+        """
+        Test that if an exception occurs during OTP sending, the view returns a 500 error.
+        """
+        with patch('auth_api.views.PhoneOtp.send_otp', side_effect=Exception("Simulated exception")):
+            response = self.client.post(self.url, {}, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Simulated exception")
+
+    def test_phone_verify_post_throttled(self):
+        """
+        Test that if throttle conditions are met, the view returns a 429 error.
+        We simulate throttling by patching the throttle helpers.
+        """
+        with patch('auth_api.views.check_throttle_duration', return_value=10):
+            with patch('auth_api.views.start_throttle', side_effect=Throttled(detail="Request was throttled. Expected available in 10 seconds.")):
+                response = self.client.post(self.url, {}, format="json")
+                self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+                # DRF usually returns the throttling message under the "detail" key.
+                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+    # ─── Tests for PATCH method (Verifying OTP) ──────────────────────────────
+
+    def test_phone_verify_patch_success(self):
+        """
+        Test that a logged‑in user can successfully verify their phone number when providing the correct OTP.
+        """
+        # As per PhoneOtp.send_otp, the OTP is set to 000000 (which is 0 in Python).
+        cache.set(f"phone_otp_{self.user.phone_number}", 0, 600)
+        data = {"otp": "0"}
+        response = self.client.patch(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("success", response.data)
+        self.assertEqual(response.data["success"], "Phone verified successfully")
+        # Verify that the user's phone is now marked as verified.
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_phone_verified)
+        # The OTP should also be removed from the cache.
+        otp = cache.get(f"phone_otp_{self.user.phone_number}")
+        self.assertIsNone(otp)
+
+    def test_phone_verify_patch_missing_otp(self):
+        """
+        Test that if no OTP is provided in the PATCH request, the view returns a 400 error.
+        """
+        data = {}  # OTP is missing.
+        response = self.client.patch(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "OTP is required")
+
+    def test_phone_verify_patch_invalid_otp(self):
+        """
+        Test that if an incorrect OTP is provided, the view returns a 400 error with "Invalid OTP".
+        """
+        # Set the correct OTP in cache (which is 0).
+        cache.set(f"phone_otp_{self.user.phone_number}", 0, 600)
+        data = {"otp": "123456"}  # An incorrect OTP.
+        response = self.client.patch(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertEqual(response.data["error"], "Invalid OTP")
+
+    def test_phone_verify_patch_exception(self):
+        """
+        Test that if an exception occurs during OTP verification (e.g. in PhoneOtp.verify_otp),
+        the view returns a 500 error.
+        """
+        with patch('auth_api.views.PhoneOtp.verify_otp', side_effect=Exception("Simulated exception in verify_otp")):
+            data = {"otp": "0"}
+            response = self.client.patch(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertIn("error", response.data)
+            self.assertEqual(response.data["error"], "Simulated exception in verify_otp")
+            
+class PasswordResetViewTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = RESET_PASSWORD_URL
+        self.user_model = get_user_model()
+        self.valid_email = "valid@example.com"
+        self.old_password = "OldPassword1!"
+        # Create a valid user for success scenarios.
+        self.user = self.user_model.objects.create_user(
+            email=self.valid_email,
+            password=self.old_password,
+            auth_provider='email',
+            is_email_verified=True,
+            is_active=True
+        )
+        
+    def tearDown(self):
+        cache.clear()
+
+    # ────────────── GET Method Tests ──────────────
+
+    def test_password_reset_get_missing_parameters(self):
+        """GET without token and expiry should return a missing verification link error."""
+        response = self.client.get(self.url)  # No token, no expiry provided.
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Missing verification link.")
+
+    def test_password_reset_get_expired_link(self):
+        """GET with an expired expiry should return an error."""
+        past_timestamp = int((now() - timedelta(minutes=1)).timestamp())
+        response = self.client.get(self.url, {'token': 'dummy', 'expiry': past_timestamp})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "The verification link has expired.")
+
+    def test_password_reset_get_invalid_link(self):
+        """GET with an invalid token should return an error (simulate EmailLink.verify_link failure)."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        with patch('auth_api.views.EmailLink.verify_link', side_effect=ValueError("Invalid verification link.")):
+            response = self.client.get(self.url, {'token': 'dummy', 'expiry': future_timestamp})
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.data["error"], "Invalid verification link.")
+
+    def test_password_reset_get_success(self):
+        """GET with valid token and expiry should return a success message."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        # Patch EmailLink.verify_link to return our valid email.
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.get(self.url, {'token': 'validtoken', 'expiry': future_timestamp})
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["success"], "Password verification link ok")
+
+    def test_password_reset_get_exception(self):
+        """GET should return a 500 error if an unexpected exception occurs."""
+        with patch('auth_api.views.check_token_validity', side_effect=Exception("GET exception")):
+            response = self.client.get(self.url, {'token': 'dummy', 'expiry': '9999999999'})
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data["error"], "GET exception")
+
+    # ────────────── POST Method Tests ──────────────
+
+    def test_password_reset_post_invalid_user(self):
+        """POST with an email that does not exist should return 'Invalid credentials'."""
+        data = {"email": "nonexistent@example.com"}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Invalid credentials")
+
+    def test_password_reset_post_wrong_auth_provider(self):
+        """POST with a user created via a non-email provider should return an error."""
+        # Create a user with a different auth provider.
+        user2 = self.user_model.objects.create_user(
+            email="google@example.com",
+            password="Password1!",
+            auth_provider="google",
+            is_email_verified=True,
+            is_active=True
+        )
+        data = {"email": "google@example.com"}
+        response = self.client.post(self.url, data, format="json")
+        expected_error = f"This process cannot be used, as user is created using {user2.auth_provider}"
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], expected_error)
+
+    def test_password_reset_post_not_verified(self):
+        """POST with a user whose email is not verified should return an error."""
+        user3 = self.user_model.objects.create_user(
+            email="notverified@example.com",
+            password="Password1!",
+            auth_provider="email",
+            is_email_verified=False,
+            is_active=True
+        )
+        data = {"email": "notverified@example.com"}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Email is not verified. You must verify your email first")
+
+    def test_password_reset_post_inactive(self):
+        """POST with an inactive user should return an error."""
+        user4 = self.user_model.objects.create_user(
+            email="inactive@example.com",
+            password="Password1!",
+            auth_provider="email",
+            is_email_verified=True,
+            is_active=False
+        )
+        data = {"email": "inactive@example.com"}
+        response = self.client.post(self.url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Account is deactivated. Contact your admin")
+
+    def test_password_reset_post_email_link_fail(self):
+        """POST should return a 500 error if sending the password reset link fails."""
+        data = {"email": self.valid_email}
+        with patch('auth_api.views.EmailLink.send_password_reset_link', return_value=False):
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data["error"], "Failed to send password reset link.")
+
+    def test_password_reset_post_success(self):
+        """POST with valid input should send the reset link and return a 201 response."""
+        data = {"email": self.valid_email}
+        with patch('auth_api.views.EmailLink.send_password_reset_link', return_value=True):
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            self.assertEqual(
+                response.data["success"],
+                "Password reset link sent. Please check your email to reset your password."
+            )
+            # Verify that the email is cached.
+            cached_email = cache.get(f"email_{self.valid_email}")
+            self.assertEqual(cached_email, self.valid_email)
+
+    def test_password_reset_post_throttled(self):
+        """POST should return 429 when throttling conditions are met."""
+        data = {"email": self.valid_email}
+        # Pre-cache the email so that throttling is triggered.
+        cache.set(f"email_{self.valid_email}", self.valid_email, timeout=60)
+        with patch('auth_api.views.check_throttle_duration', return_value=10):
+            with patch('auth_api.views.start_throttle', side_effect=Throttled(detail="Request was throttled. Expected available in 10 seconds.")):
+                response = self.client.post(self.url, data, format="json")
+                self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+                self.assertIn("Request was throttled", response.data.get("detail", ""))
+
+    def test_password_reset_post_exception(self):
+        """POST should return a 500 error if an unexpected exception occurs."""
+        with patch('auth_api.views.get_user_model', side_effect=Exception("POST exception")):
+            data = {"email": self.valid_email}
+            response = self.client.post(self.url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            self.assertEqual(response.data["error"], "POST exception")
+
+    # ────────────── PATCH Method Tests ──────────────
+
+    def test_password_reset_patch_missing_token(self):
+        """PATCH without token in query parameters should return an error."""
+        response = self.client.patch(
+            self.url,
+            {"password": "NewPassword1!", "c_password": "NewPassword1!"},
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Missing verification link.")
+
+    def test_password_reset_patch_expired_link(self):
+        """PATCH with an expired link should return an error."""
+        past_timestamp = int((now() - timedelta(minutes=1)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={past_timestamp}"
+        response = self.client.patch(
+            url,
+            {"password": "NewPassword1!", "c_password": "NewPassword1!"},
+            format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "The verification link has expired.")
+
+    def test_password_reset_patch_invalid_link(self):
+        """PATCH with an invalid token should return an error (simulate invalid link)."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        with patch('auth_api.views.EmailLink.verify_link', side_effect=ValueError("Invalid verification link.")):
+            response = self.client.patch(
+                url,
+                {"password": "NewPassword1!", "c_password": "NewPassword1!"},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.data["error"], "Invalid verification link.")
+
+    def test_password_reset_patch_invalid_user(self):
+        """PATCH with a token that returns an email not linked to any user should return an error."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        # Simulate a valid token that returns a non-existent email.
+        with patch('auth_api.views.EmailLink.verify_link', return_value="nonexistent@example.com"):
+            response = self.client.patch(
+                url,
+                {"password": "NewPassword1!", "c_password": "NewPassword1!"},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.data["error"], "Invalid credentials")
+
+    def test_password_reset_patch_passwords_do_not_match(self):
+        """PATCH when provided passwords do not match should return an error."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.patch(
+                url,
+                {"password": "NewPassword1!", "c_password": "Mismatch1!"},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.data["error"], "Passwords do not match")
+
+    def test_password_reset_patch_missing_password(self):
+        """
+        Test that if no password is provided in the PATCH request,
+        the serializer raises an error ("Password is required.").
+        """
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.patch(
+                url,
+                {},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            # Will raise an error typically handled by frontend before even reaching backend
+            
+    def test_password_reset_patch_same_as_old(self):
+        """
+        Test that if the new password is the same as the user's old password,
+        the serializer raises an error ("New password cannot be the same as the old password.").
+        """
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.patch(
+                url,
+                {"password": self.old_password, "c_password": self.old_password},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual('New password cannot be the same as the old password.', response.data[0])
+
+    def test_password_reset_patch_weak_password(self):
+        """
+        Test that if the new password is too weak (e.g. too short),
+        the serializer raises a validation error with details from validate_password.
+        """
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        weak_password = "weak"  # Too short and likely fails other criteria.
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.patch(
+                url,
+                {"password": weak_password, "c_password": weak_password},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual("Password must be at least 8 characters long.", response.data['short'])
+            self.assertEqual("Password must contain at least one uppercase letter.", response.data['upper'])
+            self.assertEqual("Password must contain at least one number.", response.data['number'])
+            self.assertEqual("Password must contain at least one special character.", response.data['special'])
+            #Lowercase can also be checked but not necessary as these errors are part of the same group
+
+    def test_password_reset_patch_success(self):
+        """PATCH with valid data should reset the password successfully."""
+        future_timestamp = int((now() + timedelta(minutes=10)).timestamp())
+        url = f"{self.url}?token=dummy&expiry={future_timestamp}"
+        new_password = "NewPassword1!"
+        with patch('auth_api.views.EmailLink.verify_link', return_value=self.valid_email):
+            response = self.client.patch(
+                url,
+                {"password": new_password, "c_password": new_password},
+                format="json"
+            )
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["success"], "Password reset successful.")
+            # Verify that the user's password was updated.
+            self.user.refresh_from_db()
+            self.assertTrue(self.user.check_password(new_password))
 
 class PublicUserApiTests(APITestCase):
     """Test the public feature of user API"""

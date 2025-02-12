@@ -1289,35 +1289,31 @@ class PasswordResetView(APIView):
     @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
         """Patch a request to Password Reset View. Password is reset using the provided token, expiry, and new password."""
-        try:
-            email = check_token_validity(request)
+        email = check_token_validity(request)
 
-            if isinstance(email, Response):
-                return email
-            
-            user = check_user_validity(email)
-            
-            if isinstance(user, Response):
-                return user
-            
-            password = request.data.get('password')
-            c_password = request.data.get('c_password')
-            
-            if password != c_password:
-                return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # password reset serializer
-            serializer = PasswordResetSerializer(instance=user, data={"password": password})
-            
-            if not serializer.is_valid():
-                return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-            
-            serializer.save()
-            
-            return Response({"success": "Password reset successful."}, status=status.HTTP_200_OK)
+        if isinstance(email, Response):
+            return email
         
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        user = check_user_validity(email)
+        
+        if isinstance(user, Response):
+            return user
+        
+        password = request.data.get('password')
+        c_password = request.data.get('c_password')
+        
+        if password != c_password:
+            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # password reset serializer
+        serializer = PasswordResetSerializer(instance=user, data={"password": password})
+        
+        if not serializer.is_valid():
+            return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer.save()
+        
+        return Response({"success": "Password reset successful."}, status=status.HTTP_200_OK)
         
 class UserViewSet(ModelViewSet):
     """Viewset for User APIs."""
