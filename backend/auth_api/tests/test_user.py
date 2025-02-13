@@ -1745,6 +1745,55 @@ class PublicUserApiTests(APITestCase):
         url = activate_user_url(user.id)
         res = self.client.patch(url, {}, format="json")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+class PrivateUserApiTests(APITestCase):
+    """Test user api requests that require authentication."""
+    pass
+
+class PrivateUserApiImageTests(APITestCase):
+    """Test user profile image"""
+    def setUp(self):
+        "Environment Setup"
+        # Create a 10x10 black image using Pillow
+        black_image = Image.new("RGB", (10, 10), "black")
+
+        # Save the image to BytesIO object
+        image_bytes = io.BytesIO()
+        black_image.save(image_bytes, format="JPEG")
+        image_bytes.seek(0)
+
+        # Create the image
+        self.image = SimpleUploadedFile(
+            name="test_image.jpg",
+            content=image_bytes.read(),
+            content_type="image/jpeg",
+        )
+
+        #Create the User
+        self.user = get_user_model().objects.create_user(
+            email="test@example.com",
+            password="Django@123",
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def tearDown(self):
+        if os.path.exists(self.image_path):
+            os.remove(self.image_path)
+        self.user.delete()
+
+    def test_update_user_profile_image(self):
+        """Update user profile image"""
+        url = image_upload_url(self.user.id)
+        res = self.client.post(url, {'profile_img': self.image}, format='multipart')
+        self.user.refresh_from_db()
+        self.image_path = os.path.join(settings.MEDIA_ROOT, self.user.profile_img.name)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("profile_img", res.data)
+        self.assertTrue(self.user.profile_img.name.endswith('test_image.jpg'))
+        self.assertTrue(os.path.exists(self.user.profile_img.path))
     
 class SocialAuthViewTests(APITestCase):
     def setUp(self):
