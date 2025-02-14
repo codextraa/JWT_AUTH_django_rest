@@ -1875,37 +1875,33 @@ class UserViewSet(ModelViewSet):
     @action(detail=True, methods=['PATCH'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])  # detail=True is only for a single user
     def upload_image(self, request, pk=None):
         """Update user profile image"""
-        try:
-            user = self.get_object()  # get the user
-            current_user = self.request.user  # Get the user making the request
+        user = self.get_object()  # get the user
+        current_user = self.request.user  # Get the user making the request
 
-            # Ensure the request is made by the user themselves or a superuser
-            if current_user.id != user.id and not current_user.is_superuser:
-                return Response(
-                    {"error": "You do not have permission to upload an image for this user."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-                
-            default_image_path = 'profile_images/default_profile.jpg'  # Define the default image path
-
-            # Check if the user has an existing image that is not the default image
-            if user.profile_img and user.profile_img.name != default_image_path:
-                # Remove the previous image file
-                user.profile_img.delete(save=False)
-            
-            serializer = self.get_serializer(
-                user,
-                data=request.data,
-                partial=True  # Only updating profile_img
+        # Ensure the request is made by the user themselves or a superuser
+        if current_user.id != user.id and not current_user.is_superuser:
+            return Response(
+                {"error": "You do not have permission to upload an image for this user."},
+                status=status.HTTP_403_FORBIDDEN,
             )
-            serializer.is_valid(raise_exception=True)  # returns 400 if fails
-            serializer.save()
+            
+        default_image_path = 'profile_images/default_profile.jpg'  # Define the default image path
 
-            return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
+        # Check if the user has an existing image that is not the default image
+        if user.profile_img and user.profile_img.name != default_image_path:
+            # Remove the previous image file
+            user.profile_img.delete(save=False)
         
-        except Exception as e:
-            return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        serializer = self.get_serializer(
+            user,
+            data=request.data,
+            partial=True  # Only updating profile_img
+        )
+        serializer.is_valid(raise_exception=True)  # returns 400 if fails
+        serializer.save()
 
+        return Response({"success": "Image uploaded successfully."}, status=status.HTTP_200_OK)
+        
     @extend_schema(
         summary="Deactivate User",
         description="Deactivate an activated user",
