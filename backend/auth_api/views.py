@@ -1877,6 +1877,9 @@ class UserViewSet(ModelViewSet):
         """Update user profile image"""
         user = self.get_object()  # get the user
         current_user = self.request.user  # Get the user making the request
+        
+        if not request.data:
+            return Response({"error": "No profile image provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Ensure the request is made by the user themselves or a superuser
         if current_user.id != user.id and not current_user.is_superuser:

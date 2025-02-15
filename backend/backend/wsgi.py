@@ -27,5 +27,5 @@ def cleanup_task():
         time.sleep(86400)  # Wait for 24 hours (86400 seconds)
 
 # Start background thread
-# thread = threading.Thread(target=cleanup_task, daemon=True)
-# thread.start()
+thread = threading.Thread(target=cleanup_task, daemon=True)
+thread.start()
