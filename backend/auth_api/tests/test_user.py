@@ -1470,28 +1470,6 @@ def create_user(**params):
 #         # Expect default profile image if none provided.
 #         default_image_path = 'profile_images/default_profile.jpg'
 #         self.assertEqual(user.profile_img.name, default_image_path)
-        
-#     # Will be private test
-#     def test_create_admin_success(self):
-#         """Test creating an admin user successfully."""
-#         superuser = get_user_model().objects.create_superuser(
-#             email="super@example.com",
-#             password="Django@123"
-#         )
-#         self.token = str(RefreshToken.for_user(superuser).access_token)
-#         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token)
-#         payload = {
-#             'email': 'test1@example.com',
-#             'password': 'Django@123',
-#             'c_password': 'Django@123',
-#             'is_staff': True
-#         }
-#         res = self.client.post(self.url, payload, format='json')
-#         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-#         user = get_user_model().objects.get(email=payload['email'])
-#         self.assertTrue(user.check_password(payload['password']))
-#         self.assertTrue(user.is_staff)
-#         self.assertNotIn('password', res.data)
 
 #     def test_create_user_missing_c_password(self):
 #         """Test that creating a user without c_password returns an error."""
@@ -1740,18 +1718,185 @@ def create_user(**params):
 #         res = self.client.patch(url, {}, format="json")
 #         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
         
-# class PrivateUserApiTests(APITestCase):
-#     """Test user api requests that require authentication."""
-#     def setUp(self):
-#         """Environment setup"""
-#         self.user = create_user(
-#             email = 'test@example.com',
-#             password = 'Django@123',
-#             first_name = 'test name'
-#         )
-#         self.client = APIClient()
-#         self.client.force_authenticate(user=self.user)
+class PrivateUserApiTests(APITestCase):
+    """Test user API requests that require authentication."""
+
+    def setUp(self):
+        """Environment setup"""
+        self.user = create_user(
+            email='test@example.com',
+            password='Django@123',
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.url = detail_url(self.user.id)
+
+    #------------------GET------------------#
+
+    # def test_list_users(self):
+    #     """Test retrieving a paginated list of users."""
+    #     res = self.client.get(USER_URL)
+        
+    #     self.assertEqual(res.status_code, status.HTTP_200_OK)
+    #     self.assertIn('results', res.data)
+    #     self.assertIn('count', res.data)
+    #     self.assertIn('total_pages', res.data)
+
+    # def test_retrieve_user(self):
+    #     """Test retrieving a single user by ID."""
+    #     res = self.client.get(self.url)
+        
+    #     self.assertEqual(res.status_code, status.HTTP_200_OK)
+    #     self.assertEqual(res.data['email'], self.user.email)
+
+    # def test_filter_users_by_search(self):
+    #     """Test filtering users by email or username."""
+    #     response = self.client.get(USER_URL, {'search': 'test'})
+        
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     self.assertTrue(len(response.data['results']) > 0)
+
+    # def test_filter_users_by_group(self):
+    #     """Test filtering users by group name."""
+    #     response = self.client.get(USER_URL, {'group': 'admin'})
+        
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     self.assertTrue(len(response.data['results']) == 0)
+
+    # def test_pagination(self):
+    #     """Test that user list pagination works."""
+    #     response = self.client.get(USER_URL, {'page': 1, 'page_size': 2})
+        
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     self.assertIn('next', response.data)
+    #     self.assertIn('previous', response.data)
+        
+    #------------------CREATE------------------#
     
+    # def test_create_admin_success(self):
+    #     """Test creating an admin user successfully."""
+    #     superuser = get_user_model().objects.create_superuser(
+    #         email='admin@example.com',
+    #         password='Admin@123',
+    #     )
+    #     self.client.force_authenticate(user=superuser)
+    #     payload = {
+    #         'email': 'test1@example.com',
+    #         'password': 'Django@123',
+    #         'c_password': 'Django@123',
+    #         'is_staff': True
+    #     }
+    #     res = self.client.post(USER_URL, payload, format='json')
+    #     self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+    #     user = get_user_model().objects.get(email=payload['email'])
+    #     self.assertTrue(user.check_password(payload['password']))
+    #     self.assertTrue(user.is_staff)
+    #     self.assertNotIn('password', res.data)
+        
+    #------------------UPDATE------------------#
+        
+    # def test_successful_update(self):
+    #     """Test updating user's own profile successfully."""
+    #     payload = {"first_name": "John", "last_name": "Doe"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     self.assertEqual(response.data["success"], "User profile updated successfully.")
+    
+    # def test_superuser_can_update_any_user(self):
+    #     """Test that a superuser can update any user's profile."""
+    #     superuser = get_user_model().objects.create_superuser(
+    #         email='admin@example.com',
+    #         password='Admin@123',
+    #     )
+    #     self.client.force_authenticate(user=superuser)
+    #     payload = {"first_name": "Updated"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    # def test_email_cannot_be_updated(self):
+    #     """Test that forbidden fields cannot be updated."""
+    #     payload = {"email": "new@example.com"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertIn("You cannot update the email field.", response.data["error"])
+    
+    # def test_profile_img_cannot_be_updated(self):
+    #     """Test that profile image cannot be updated through this endpoint."""
+    #     payload = {"profile_img": "new_image.jpg"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertIn("Profile Image cannot be updated here.", response.data["error"])
+    
+    # def test_password_cannot_be_updated(self):
+    #     """Test that password cannot be updated without a verification link."""
+    #     payload = {"password": "NewPass@123"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertIn("Password reset cannot be done without verification link.", response.data["error"])
+        
+    # def test_forbidden_field_update(self):
+    #     """Test that forbidden fields cannot be updated."""
+    #     payload = {"is_staff": True}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertIn("Forbidden fields cannot be updated.", response.data["error"])
+        
+    # def test_other_user_cannot_update(self):
+    #     """Test that a non-superuser cannot update another user's profile."""
+    #     other_user = get_user_model().objects.create_user(
+    #         email='other@example.com',
+    #         password='Other@123',
+    #     )
+    #     self.client.force_authenticate(user=other_user)
+    #     payload = {"first_name": "Updated"}
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    #     self.assertIn("You do not have permission to update this user.", response.data["error"])
+        
+    # def test_username_already_exists_validation(self):
+    #     """Test username validation errors."""
+    #     other_user = get_user_model().objects.create_user(
+    #         email='other@example.com',
+    #         password='Other@123',
+    #         username='abcdefgh'
+    #     )
+    #     payload = {"username": "abcdefgh"}  # Too short
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.assertIn("user with this username already exists.", json.dumps(response.data["username"]))
+        
+    # def test_username_short_validation(self):
+    #     """Test username validation errors."""
+    #     payload = {"username": "abc"}  # Too short
+    #     response = self.client.patch(self.url, payload)
+        
+    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.assertIn("Username must be at least 6 characters long.", json.dumps(response.data["username"]))
+        
+    # def test_update_user_invalid_phone_number(self):
+    #     """Test that invalid phone numbers are rejected."""
+    #     payload = {'phone_number': 'invalid123'}
+    #     response = self.client.patch(self.url, payload)
+    #     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    #     self.assertIn("The phone number entered is not valid.", json.dumps(response.data['phone_number']))
+
+    # def test_put_method_not_allowed(self):
+    #     """Test that PUT method is not allowed."""
+    #     payload = {'first_name': 'Should Fail'}
+    #     response = self.client.put(self.url, payload)
+    #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    #     self.assertIn('error', response.data)
+    
+    #------------------DELETE------------------#
+
 # class SocialAuthViewTests(APITestCase):
 #     def setUp(self):
 #         self.url = SOCIAL_LOGIN_URL
