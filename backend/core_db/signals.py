@@ -3,6 +3,7 @@ from django.db.models.signals import pre_save, post_save
 from django.contrib.auth.models import Group
 from django.dispatch import receiver
 from django.utils.text import slugify
+from django.utils.timezone import now
 from .models import User
 
 
@@ -17,6 +18,12 @@ def save_user_slug(sender, instance, created, **kwargs):
     """Create slug for user using username"""
     if created or (slugify(instance.username) != instance.slug):
         instance.slug = slugify(instance.username)
+        instance.save()
+        
+@receiver(post_save, sender=User)
+def save_user_last_failed_login_time(sender, instance, created, **kwargs):
+    if created:
+        instance.last_failed_login_time = now()
         instance.save()
 
 @receiver(post_save, sender=User)

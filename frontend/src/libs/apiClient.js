@@ -4,6 +4,8 @@ import {
 } from "./cookie";
 
 
+const HTTPS = process.env.HTTPS === 'true';
+
 export class ApiClient {
   constructor(baseURL) {
     this.baseURL = baseURL;
@@ -101,6 +103,7 @@ export class ApiClient {
         "Cookie": `csrftoken=${csrfToken}`,
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         ...(csrfToken && { "X-CSRFToken" : csrfToken }),
+        ...(HTTPS && { "Referer": process.env.NEXT_PUBLIC_BASE_HTTPS_URL }),
       },
       credentials: "include",
       ...additionalOptions,

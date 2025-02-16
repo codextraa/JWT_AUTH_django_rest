@@ -81,6 +81,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
+    failed_login_attempts = models.IntegerField(default=0)
+    last_failed_login_time = models.DateTimeField(blank=True, null=True)
     auth_provider = models.CharField(
         max_length=20, 
         choices=AUTH_PROVIDER, 

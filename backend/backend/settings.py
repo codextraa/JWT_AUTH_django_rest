@@ -316,6 +316,12 @@ CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the 
 CSRF_COOKIE_SAMESITE = 'Lax' # Prevent cross-origin requests
 CSRF_COOKIE_AGE = 60 * 60 * 24 # 1 day
 
+# Session Settings
+
+SESSION_COOKIE_SECURE = True  # Secure session cookies
+
+# User Settings
+
 AUTH_USER_MODEL = 'core_db.User'
 
 # Media Settings
@@ -340,3 +346,15 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# Security Settings
+MAX_LOGIN_FAILURE_LIMIT = 5
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# SECURE_SSL_REDIRECT = True  # Force HTTPS (use if Nginx is not used)
+SECURE_HSTS_SECONDS = 31536000  # Enforce HSTS for 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # Only if Nginx is reverse proxied

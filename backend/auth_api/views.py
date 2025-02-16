@@ -79,19 +79,19 @@ def check_user_validity(email):
         
     # Check if user exists
     if not user:
-        return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
     
     if user.auth_provider != 'email':
-        return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}."}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is email verified
     if not user.is_email_verified:
-        return Response({"error": "Email is not verified. You must verify your email first"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Email is not verified. You must verify your email first."}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is active
     if not user.is_active:
-        return Response({"error": "Account is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response({"error": "Account is deactivated. Contact your admin."}, status=status.HTTP_400_BAD_REQUEST)
+        
     return user
 
 def get_user_role(user):
@@ -377,7 +377,43 @@ class LoginView(APIView):
             
             # Check if password is correct
             if not user.check_password(password):
+                # Increment failed login attempts
+                if now() - user.last_failed_login_time <= timedelta(minutes=10):
+                    user.failed_login_attempts += 1
+                else:
+                    user.failed_login_attempts = 1
+                    
+                user.last_failed_login_time = now()
+                user.save()
+                
+                if user.failed_login_attempts == settings.MAX_LOGIN_FAILURE_LIMIT:
+                    # Lock account
+                    if user.is_superuser:
+                        user.is_email_verified = False
+                        user.save()
+                        return Response({
+                            "error": "Invalid credentials. Your account is deactivated. Verify your email."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    else:
+                        user.is_active = False
+                        user.save()
+                        return Response({
+                            "error": "Invalid credentials. Your account is deactivated. Contact an admin."
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if user.failed_login_attempts >= 3:
+                    remaining_attempts = settings.MAX_LOGIN_FAILURE_LIMIT - user.failed_login_attempts
+                    return Response({
+                        "error": f"Invalid credentials. You have {remaining_attempts} more attempt(s) before your account is deactivated."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                
                 return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Reset failed login attempts
+            if user.failed_login_attempts > 0:
+                user.failed_login_attempts = 0
+                user.save()
             
             # Generate OTP
             response = create_otp(user.id, email, password)
@@ -667,9 +703,12 @@ class RefreshTokenView(TokenRefreshView):
             user_id = decoded_token.get('user_id', None)
             if not user_id:
                 raise InvalidToken("Invalid refresh token")
-                
-            # Fetch the user from the database
-            user = get_user_model().objects.get(id=user_id)
+            
+            #Check user validity
+            user = check_user_id(user_id)
+            
+            if isinstance(user, Response):
+                return user
             
             user_role = get_user_role(user)
             

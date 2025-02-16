@@ -20,7 +20,8 @@ class UserAdmin(BaseUserAdmin):
         }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_email_verified', 
-                       'is_phone_verified', 'groups', 'user_permissions')
+                       'is_phone_verified', 'failed_login_attempts', 
+                       'last_failed_login_time', 'groups', 'user_permissions')
         }),
         ('Important dates', {
             'fields': ('last_login',)
@@ -33,7 +34,7 @@ class UserAdmin(BaseUserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('email', 'username', 'slug', 'password1', 'password2', 
-                       'is_active', 'is_staff', 'is_email_verified', 'is_phone_verified',)
+                       'is_active', 'is_staff')
         }),
     )
 
