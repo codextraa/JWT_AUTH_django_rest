@@ -330,6 +330,9 @@ class LoginView(APIView):
                             "items": {"type": "string"},
                             "example": [
                                 "Invalid credentials",
+                                "Invalid credentials. You have X more attempt(s) before your account is deactivated.",
+                                "Invalid credentials. Your account is deactivated. Verify your email.",
+                                "Invalid credentials. Your account is deactivated. Contact an admin.",
                                 "Email and password are required",
                                 "This process cannot be used, as user is created using {auth_provider}",
                                 "Email is not verified. You must verify your email first",
@@ -663,8 +666,19 @@ class RefreshTokenView(TokenRefreshView):
                                 "Tokens are required",
                                 "Invalid tokens",
                                 "Invalid refresh token",
+                                "This process cannot be used, as user is created using {auth_provider}",
+                                "Email is not verified. You must verify your email first",
                             ],
                         },
+                    },
+                },
+            ),
+            401: OpenApiResponse(
+                description="Unauthorized - Invalid refresh token",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {"type": "string", "example": "Invalid refresh token"},
                     },
                 },
             ),
@@ -1884,7 +1898,7 @@ class UserViewSet(ModelViewSet):
                             "type": "array",
                             "items": {"type": "string"},
                             "example": [
-                                "You do not have permission to upload an image for this user.",
+                                "No profile image provided.",
                                 {
                                     "profile_img": [
                                         'Profile image is required.',
@@ -1895,6 +1909,18 @@ class UserViewSet(ModelViewSet):
                                     ],
                                 },
                             ],
+                        },
+                    },
+                },
+            ),
+            403: OpenApiResponse(
+                description="Permission Denied",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "errors": {
+                            "type": "string", 
+                            "example": "You do not have permission to upload an image for this user."
                         },
                     },
                 },

@@ -99,6 +99,12 @@ paths:
                       type: string
                     example:
                     - Invalid credentials
+                    - Invalid credentials. You have X more attempt(s) before your
+                      account is deactivated.
+                    - Invalid credentials. Your account is deactivated. Verify your
+                      email.
+                    - Invalid credentials. Your account is deactivated. Contact an
+                      admin.
                     - Email and password are required
                     - This process cannot be used, as user is created using {auth_provider}
                     - Email is not verified. You must verify your email first
@@ -865,8 +871,20 @@ paths:
                     - Tokens are required
                     - Invalid tokens
                     - Invalid refresh token
+                    - This process cannot be used, as user is created using {user.auth_provider}
+                    - Email is not verified. You must verify your email first
           description: Bad Request - Various errors related to OTP verification or
             session issues
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: string
+                    example: Invalid refresh token
+          description: Unauthorized - Invalid refresh token
         '500':
           content:
             application/json:
@@ -1416,12 +1434,23 @@ paths:
                     items:
                       type: string
                     example:
-                    - You do not have permission to upload an image for this user.
+                    - No profile image provided.
                     - profile_img:
                       - Profile image is required.
                       - size: Profile image size should not exceed 2MB.
                         type: Profile image type should be JPEG, PNG
           description: Invalid request
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: string
+                    example: You do not have permission to upload an image for this
+                      user.
+          description: Permission Denied
         '500':
           content:
             application/json:
