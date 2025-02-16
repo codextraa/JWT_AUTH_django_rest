@@ -178,6 +178,12 @@ class LoginViewTests(APITestCase):
         
     def tearDown(self):
         cache.clear()
+        
+    def simulate_failed_attempts(self, user, attempts):
+        """Helper function to simulate failed login attempts."""
+        user.failed_login_attempts = attempts
+        user.last_failed_login_time = now()
+        user.save()
 
     @patch('auth_api.views.create_otp')
     def test_login_success(self, mock_create_otp):
@@ -285,6 +291,104 @@ class LoginViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)  # Or whatever status code you return
         self.assertIn('error', response.data)
         self.assertEqual(response.data['error'], f"This process cannot be used, as user is created using {diff_auth_user.auth_provider}")
+        
+    def test_login_failed_attempts_increment(self):
+        """
+        Test that failed login attempts increment properly.
+        """
+        data = {'email': self.test_user.email, 'password': 'wrongpassword'}
+
+        for i in range(1, settings.MAX_LOGIN_FAILURE_LIMIT):
+            response = self.client.post(self.url, data, format='json')
+            self.test_user.refresh_from_db()
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(self.test_user.failed_login_attempts, i)
+
+    def test_login_account_lockout_for_user(self):
+        """
+        Test that after reaching max failed login attempts, normal users are deactivated.
+        """
+        data = {'email': self.test_user.email, 'password': 'wrongpassword'}
+
+        for _ in range(settings.MAX_LOGIN_FAILURE_LIMIT):
+            self.client.post(self.url, data, format='json')
+
+        self.test_user.refresh_from_db()
+        self.assertFalse(self.test_user.is_active)
+
+        # Ensure login is blocked after deactivation
+        response = self.client.post(self.url, {'email': self.test_user.email, 'password': 'TestP@ssw0rd'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], "Account is deactivated. Contact your admin")
+
+    def test_login_account_lockout_for_superuser(self):
+        """
+        Test that after reaching max failed login attempts, superusers lose email verification instead of deactivation.
+        """
+        superuser = get_user_model().objects.create_superuser(
+            email='superuser@example.com',
+            password='AdminP@ssw0rd'
+        )
+        data = {'email': superuser.email, 'password': 'wrongpassword'}
+
+        for _ in range(settings.MAX_LOGIN_FAILURE_LIMIT):
+            self.client.post(self.url, data, format='json')
+
+        superuser.refresh_from_db()
+        self.assertTrue(superuser.is_active)  # Should still be active
+        self.assertFalse(superuser.is_email_verified)  # Should lose email verification
+
+        # Ensure login is blocked due to unverified email
+        response = self.client.post(self.url, {'email': superuser.email, 'password': 'AdminP@ssw0rd'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], "Email is not verified. You must verify your email first")
+
+    def test_login_reset_failed_attempts_on_success(self):
+        """
+        Test that successful login resets failed login attempts counter.
+        """
+        self.test_user.failed_login_attempts = settings.MAX_LOGIN_FAILURE_LIMIT - 1
+        self.test_user.save()
+
+        data = {'email': self.test_user.email, 'password': 'TestP@ssw0rd'}
+        response = self.client.post(self.url, data, format='json')
+
+        self.test_user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.test_user.failed_login_attempts, 0)  # Counter should be reset
+        
+    def test_login_three_failed_attempts_warning(self):
+        """
+        Test that after 3 failed login attempts, a warning message is returned.
+        """
+        self.simulate_failed_attempts(self.test_user, 2)  # Already 2 failed attempts
+        
+        data = {'email': 'test@example.com', 'password': 'WrongPassword'}
+        response = self.client.post(self.url, data, format='json')
+
+        remaining_attempts = settings.MAX_LOGIN_FAILURE_LIMIT - 3
+        expected_message = f"Invalid credentials. You have {remaining_attempts} more attempt(s) before your account is deactivated."
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], expected_message)
+
+    def test_login_reaching_max_failed_attempts_locks_account(self):
+        """
+        Test that when the max failed login attempts limit is reached,
+        the account gets deactivated and an appropriate message is returned.
+        """
+        self.simulate_failed_attempts(self.test_user, settings.MAX_LOGIN_FAILURE_LIMIT - 1)  # One attempt left
+
+        data = {'email': 'test@example.com', 'password': 'WrongPassword'}
+        response = self.client.post(self.url, data, format='json')
+
+        self.test_user.refresh_from_db()
+        self.assertFalse(self.test_user.is_active)  # Account should now be locked
+
+        expected_message = "Invalid credentials. Your account is deactivated. Contact an admin."
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error'], expected_message)
 
     @patch('auth_api.views.EmailOtp.send_email_otp')
     def test_login_otp_failure_bad_request(self, mock_send_email):
@@ -663,7 +767,11 @@ class RefreshTokenViewTests(APITestCase):
         # Create a user for testing
         self.email = "test@example.com"
         self.password = "Test@123"
-        self.user = create_user(email=self.email, password=self.password)
+        self.user = create_user(
+            email=self.email, 
+            password=self.password,
+            is_email_verified=True
+        )
         
         self.admin_group, _ = Group.objects.get_or_create(name="Admin")
         self.superuser_group, _ = Group.objects.get_or_create(name="Superuser")
@@ -723,7 +831,6 @@ class RefreshTokenViewTests(APITestCase):
 
         data = {"refresh": refresh_token}
         response = self.client.post(self.refresh_url, data, format="json")
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["user_role"], "Superuser")
 
@@ -793,6 +900,69 @@ class RefreshTokenViewTests(APITestCase):
         response = self.client.post(self.refresh_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)  # Or 401
         self.assertIn("error", response.data)
+        
+    def test_invalid_session_no_user_id(self):
+        """Test refresh token where no user_id is found in the token."""
+        refresh = RefreshToken()
+        refresh_token = str(refresh)  # No user_id in token
+
+        data = {"refresh": refresh_token}
+        response = self.client.post(self.refresh_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data["error"], 'Invalid refresh token')
+
+    def test_invalid_session_non_integer_user_id(self):
+        """Test refresh token where user_id is not an integer."""
+        refresh = RefreshToken()
+        refresh["user_id"] = "invalid_user_id"  # Setting user_id as a string
+        refresh_token = str(refresh)
+
+        data = {"refresh": refresh_token}
+        response = self.client.post(self.refresh_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data["error"], 'Invalid refresh token')
+
+    def test_refresh_token_for_inactive_user(self):
+        """Test refresh token for an inactive user."""
+        self.user.is_active = False
+        self.user.save()
+
+        refresh = RefreshToken.for_user(self.user)
+        refresh_token = str(refresh)
+
+        data = {"refresh": refresh_token}
+        response = self.client.post(self.refresh_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data["error"], 'Invalid refresh token')
+
+    def test_refresh_token_for_unverified_email(self):
+        """Test refresh token for a user whose email is not verified."""
+        self.user.is_email_verified = False
+        self.user.save()
+
+        refresh = RefreshToken.for_user(self.user)
+        refresh_token = str(refresh)
+
+        data = {"refresh": refresh_token}
+        response = self.client.post(self.refresh_url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], "Email is not verified. You must verify your email first")
+
+    def test_refresh_token_for_social_auth_user(self):
+        """Test refresh token for a user created using social login."""
+        self.user.auth_provider = "google"
+        self.user.save()
+
+        refresh = RefreshToken.for_user(self.user)
+        refresh_token = str(refresh)
+
+        data = {"refresh": refresh_token}
+        response = self.client.post(self.refresh_url, data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["error"], f"This process cannot be used, as user is created using google")
 
 class EmailVerifyViewTests(APITestCase):
     def setUp(self):

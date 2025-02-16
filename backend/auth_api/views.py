@@ -79,18 +79,18 @@ def check_user_validity(email):
         
     # Check if user exists
     if not user:
-        return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
     
     if user.auth_provider != 'email':
-        return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"This process cannot be used, as user is created using {user.auth_provider}"}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is email verified
     if not user.is_email_verified:
-        return Response({"error": "Email is not verified. You must verify your email first."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Email is not verified. You must verify your email first"}, status=status.HTTP_400_BAD_REQUEST)
     
     # Check if user is active
     if not user.is_active:
-        return Response({"error": "Account is deactivated. Contact your admin."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Account is deactivated. Contact your admin"}, status=status.HTTP_400_BAD_REQUEST)
         
     return user
 

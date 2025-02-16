@@ -28,6 +28,7 @@ class UserModelTests(TestCase):
         self.assertEqual(user.username, email) # checking if username signal is working
         self.assertEqual(user.is_email_verified, False) # checking if email verified is false
         self.assertEqual(user.is_phone_verified, False) # checking if phone verified is false
+        self.assertEqual(user.failed_login_attempts, 0) # checking if failed login attempts is 0
         self.assertIn(default_group, user.groups.all()) # checking if group signal is working
         
     def test_creating_admin_user_with_email(self):
