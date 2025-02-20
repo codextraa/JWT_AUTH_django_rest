@@ -208,7 +208,8 @@ class CSRFTokenView(APIView):
         """Get Method for CSRF Token."""
         try:
             csrf_token = get_token(request)
-            csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1)
+            # Substracting a minute so that frontend request doesn't give token expired error
+            csrf_token_expiry = datetime.now(timezone.utc) + timedelta(days=1) - timedelta(minutes=1)
             return Response(
                 {"csrf_token": csrf_token, "csrf_token_expiry": csrf_token_expiry.isoformat()},
                 status=status.HTTP_200_OK
@@ -2246,13 +2247,17 @@ class SocialAuthView(APIView):
         request=SocialOAuthSerializer,
         responses={
             200: OpenApiResponse(
-                description="Login successful",
+                description="Token response",
                 response={
                     "type": "object",
                     "properties": {
-                        "success": {"type": "string", "example": "Logged in successfully"}
-                    }
-                }
+                        "access_token_expiry": {"type": "string", "example": "2023-01-01T00:00:00Z"},
+                        "access": {"type": "string", "example": "JWT access token"},
+                        "refresh": {"type": "string", "example": "JWT refresh token"},
+                        "user_role": {"type": "string", "example": "Admin"},
+                        "user_id": {"type": "integer", "example": 1},
+                    },
+                },
             ),
             400: OpenApiResponse(
                 description="Invalid request",

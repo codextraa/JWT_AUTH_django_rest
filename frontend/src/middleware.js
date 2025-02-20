@@ -45,7 +45,7 @@ export async function middleware(req) {
   let csrfToken = await getCSRFTokenExpiryFromSession();
   if (!csrfToken) {
     await setCSRFCookie();
-  }
+  };
 
   if (isAuthRoute) {
     console.warn('Handling auth route');

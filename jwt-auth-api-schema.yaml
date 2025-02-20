@@ -708,10 +708,22 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
+                  access_token_expiry:
                     type: string
-                    example: Logged in successfully
-          description: Login successful
+                    example: '2023-01-01T00:00:00Z'
+                  access:
+                    type: string
+                    example: JWT access token
+                  refresh:
+                    type: string
+                    example: JWT refresh token
+                  user_role:
+                    type: string
+                    example: Admin
+                  user_id:
+                    type: integer
+                    example: 1
+          description: Token response
         '400':
           content:
             application/json:
@@ -871,7 +883,7 @@ paths:
                     - Tokens are required
                     - Invalid tokens
                     - Invalid refresh token
-                    - This process cannot be used, as user is created using {user.auth_provider}
+                    - This process cannot be used, as user is created using {auth_provider}
                     - Email is not verified. You must verify your email first
           description: Bad Request - Various errors related to OTP verification or
             session issues

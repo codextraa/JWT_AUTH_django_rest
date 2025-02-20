@@ -4,7 +4,6 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils.timezone import now, timedelta
 from PIL import Image
@@ -15,7 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework.test import APITestCase, APIClient
 from social_core.exceptions import AuthException
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 
@@ -630,7 +629,7 @@ class ResendOtpViewTests(APITestCase):
 
 class TokenViewTests(APITestCase):
     """Test the TokenView"""
-    # Part of it which uses check_user_validity is already tested in TokenViewTests
+    # Part of it which uses check_user_validity is already tested in LoginViewTests
 
     def setUp(self):
         self.url = TOKEN_USER_URL  # Assuming you named your URL 'token_obtain_pair' (or whatever your token URL is)

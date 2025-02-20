@@ -23,10 +23,10 @@ export class ApiClient {
       console.warn(`Throttling: Waiting ${waitTime / 1000} seconds before sending request to ${endpoint}`);
 
       await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
+    };
 
     this.lastRequestTimes.set(endpoint, Date.now());
-  }
+  };
 
   async handleErrors(response) {
     const contentType = response.headers.get("Content-Type") || "";
@@ -68,7 +68,7 @@ export class ApiClient {
         }
       } else {
         return { error: "Unexpected error occurred." };
-      }
+      };
 
       // try { // only for debugging
       //   // Non-JSON error response
@@ -96,11 +96,17 @@ export class ApiClient {
     const csrfToken = await getCSRFTokenFromSession();
     const url = `${this.baseURL}${endpoint}`;
 
+    let cookieHeader = "";
+
+    if (csrfToken) {
+      cookieHeader += `csrftoken=${csrfToken}; `;
+    };
+
     let options = {
       method,
       headers: {
         "Accept": "application/json",
-        "Cookie": `csrftoken=${csrfToken}`,
+        ...(cookieHeader && { "Cookie": cookieHeader.trim() }),
         ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         ...(csrfToken && { "X-CSRFToken" : csrfToken }),
         ...(HTTPS && { "Referer": process.env.NEXT_PUBLIC_BASE_HTTPS_URL }),
