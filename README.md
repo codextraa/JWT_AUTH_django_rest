@@ -1,6 +1,8 @@
 # JWT-AUTH
 
-**Welcome to JWT-AUTH**, a fullstack web application built with **NextJS** for the frontend and **Django** for the backend, utilizing **REST** APIs and a **Postgres** database. This project demonstrates a secure authentication system using **JSON Web Tokens (JWT)**, including features like OTP-based login, email and phone verification, password reset, and social media login integration. The application starts with a login page where users can enter their email and password. Upon successful authentication, an OTP is sent to the user's email for verification. After verifying the OTP, users receive JWT tokens for accessing protected routes.
+**Welcome to JWT-AUTH**, a fullstack web application built with **NextJS** for the frontend and **Django** for the backend, utilizing **REST** APIs and a **Postgres** database. This project demonstrates a secure authentication system using **JSON Web Tokens (JWT)**, including features like OTP-based login, email verification based registration, email and phone verification, password reset, and social media login integration. The application starts with a login page where users can enter their email and password. Upon successful authentication, an OTP is sent to the user's email for verification. After verifying the OTP, users receive JWT tokens for accessing protected routes. The user can edit thier profile in the **Profile** page. The profile image is retrieved from Social Providers if the account is created using Social account. Otherwise a default image is set for password users.
+
+**Superusers** and **Admins** have elevated priviliges where they can access the **Admin-dashboard** and can activate, deactivate, edit or delete an user according to thier priviliges.
 
 For more details, visit the [GitHub repository](https://github.com/wasee-sun/JWT_AUTH_django_rest).
 
@@ -27,6 +29,17 @@ To set up the project locally, follow these steps:
    git clone https://github.com/wasee-sun/JWT_AUTH_django_rest
    cd JWT_AUTH_django_rest
 
+2. **Create a virtual environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+
+3. **Create .env files**:
+   Create `.env` files in the `backend` and `frontend` directories.
+   These env files contain sensitive information and should not be committed to version control. They must exist before running the setup script.
+   
+   See the env variable names in the [env-vars.md](link-to-env-vars) file.
+
 ### Backend (Django) Setup
 
 1. **Navigate to the backend directory**:
@@ -42,7 +55,7 @@ To set up the project locally, follow these steps:
    ```bash
    python manage.py runserver
 
-### Backend Setup
+### Frontend (NextJS) Setup
 
 1. **Navigate to the frontend directory**:
    ```bash
