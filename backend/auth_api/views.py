@@ -627,6 +627,10 @@ class TokenView(TokenObtainPairView):
             response.data['refresh_token'] = response.data['refresh']
             response.data.pop('access')
             response.data.pop('refresh')
+            
+            # Delete cache entries after successful login
+            cache.delete(f"email_{user.id}")
+            cache.delete(f"password_{user.id}")
 
             return response
         

@@ -39,7 +39,7 @@ export async function middleware(req) {
     updatedCookie = await updateSessionCookie(req);
     if (updatedCookie) {
       isLoggedIn = true;
-    }
+    };
   };
 
   let csrfToken = await getCSRFTokenExpiryFromSession();
@@ -72,9 +72,9 @@ export async function middleware(req) {
     return NextResponse.redirect(new URL(`${BASE_ROUTE}/auth/login`, req.url)); // Redirect to login page
   };
 
-  if (updatedCookie) {
-    const res = NextResponse.next();
+  const res = NextResponse.next();
 
+  if (updatedCookie) {
     // Set the updated session cookie in the response
     // cookieStore takes time to set the cookie and update the client side
     // therefore it is not available right at the moment the next request is called
@@ -86,12 +86,10 @@ export async function middleware(req) {
       path: updatedCookie.path,
       sameSite: updatedCookie.sameSite,
     });
-
-    return res;
-  }
+  };
 
   // If everything is fine, allow the request to continue
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {

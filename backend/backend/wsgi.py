@@ -24,7 +24,7 @@ def cleanup_task():
         expired_tokens.delete()
         print(f"Deleted {count} expired refresh tokens")
         
-        time.sleep(86400)  # Wait for 24 hours (86400 seconds)
+        time.sleep(21600)  # Wait for 6 hours (21600 seconds)
 
 # Start background thread
 thread = threading.Thread(target=cleanup_task, daemon=True)

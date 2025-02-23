@@ -65,7 +65,7 @@ export const updateSessionCookie = async (req) => {
 
   if (!session) {
     return false;
-  }
+  };
 
   const refresh_token = await getRefreshTokenFromSession();
 
@@ -73,13 +73,15 @@ export const updateSessionCookie = async (req) => {
     return false;
   };
 
-  const res = await refreshToken(refresh_token);
+  const response = await refreshToken(refresh_token);
 
-  if (res.access_token && res.refresh_token && res.user_id && res.user_role && res.access_token_expiry) {
-    return await setSessionCookie(res);
+  if (response.access_token && response.refresh_token 
+    && response.user_role && response.user_id 
+    && response.access_token_expiry) {
+    return await setSessionCookie(response);
   } else {
     await deleteSessionCookie();
-    // await deleteCSRFCookie();
+    await deleteCSRFCookie();
     return false;
   };
 };
@@ -147,7 +149,22 @@ export const getCSRFTokenExpiryFromSession = async () => {
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
-    return decryptedData?.csrf_token_expiry || null; // Return user_id if present
+
+    if (decryptedData && decryptedData.csrf_token_expiry) { // Check if access_token_expiry is present
+      const expiryDate = new Date(decryptedData.csrf_token_expiry);
+      const currentDate = new Date();
+
+      // Compare the expiry date with the current date
+      if (currentDate > expiryDate) {
+        console.warn("CSRF has expired");
+        return false;
+      } else {
+        console.warn("CSRF is still valid");
+        return true;
+      };
+    };
+
+    return false; // Return access_token_expiry if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
@@ -258,10 +275,10 @@ export const getAccessTokenExpiryFromSession = async () =>  {
 
       // Compare the expiry date with the current date
       if (currentDate > expiryDate) {
-        console.warn("Token has expired");
+        console.warn("Session has expired");
         return false;
       } else {
-        console.warn("Token is still valid");
+        console.warn("Session is still valid");
         return true;
       };
     };
