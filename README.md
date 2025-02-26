@@ -122,6 +122,8 @@ The API provides various endpoints for authentication and user management. Below
 
 For detailed API documentation, including request and response formats, download the [API Documentation](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/Api-docs.docx).
 
+For testing the Backend API, download the [Swagger Documentation](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/jwt-auth-api-schema.yaml).
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:
