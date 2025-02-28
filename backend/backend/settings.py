@@ -36,7 +36,7 @@ PUBLIC_KEY = open(os.path.join(BASE_DIR, "public_key.pem")).read()
 
 # URLS
 HTTPS = os.getenv("HTTPS")
-BASE_ROUTE = os.getenv("FRONTEND_BASE_ROUTE")
+BASE_ROUTE = os.getenv("BASE_ROUTE")
 
 if HTTPS == "True":
     BACKEND_URL = os.getenv("HTTPS_BACKEND_URL")
@@ -170,6 +170,16 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',  # Redis URL for your Redis server
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+    }
+}
 
 # Authentication backends
 
@@ -330,7 +340,10 @@ if TESTING:
     MEDIA_URL = '/media/test_media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media', 'test_media')
 else:
-    MEDIA_URL = 'https://localhost/media/'
+    if HTTPS == "True":
+        MEDIA_URL = 'https://localhost/media/'
+    else:
+        MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, '..', 'media')
     
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB

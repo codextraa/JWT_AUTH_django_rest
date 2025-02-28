@@ -3,7 +3,7 @@ import styles from './page.module.css';
 export default function Page() {
   return (
     <div className={styles.container}>
-      <h1 className={styles.titleh1}>Welcome to SESSION-AUTH</h1>
+      <h1 className={styles.titleh1}>Welcome to JWT-AUTH</h1>
       <p className={styles.description}>
         A fullstack web application built with <strong>NextJS</strong> for the frontend 
         and <strong>Django</strong> for the backend, utilizing <strong>REST</strong> APIs 
