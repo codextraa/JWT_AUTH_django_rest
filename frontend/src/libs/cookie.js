@@ -1,12 +1,11 @@
 import { cookies } from 'next/headers';
-import { 
+import {
   encrypt,
   decrypt,
   validateSessionData,
-  validateCSRFTokenData
+  validateCSRFTokenData,
 } from './session';
 import { refreshToken, getCSRFToken } from './api';
-import { BASE_ROUTE } from '@/route';
 
 export const setSessionCookie = async (data) => {
   try {
@@ -15,7 +14,7 @@ export const setSessionCookie = async (data) => {
 
     if (!sessionData) {
       throw new Error('Invalid session data.');
-    };
+    }
 
     // Encrypt the session data
     const encryptedSessionData = await encrypt(sessionData);
@@ -27,7 +26,7 @@ export const setSessionCookie = async (data) => {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 60 * 60 * 24, // One day in seconds
-      path: BASE_ROUTE, // Dynamic path
+      path: '/', // Dynamic path
       sameSite: 'lax', // Helps prevent CSRF attacks
     });
 
@@ -35,17 +34,17 @@ export const setSessionCookie = async (data) => {
   } catch (error) {
     console.error('Error setting cookie:', error);
     throw new Error('Failed to set session cookie.');
-  };
+  }
 };
 
 export const setCSRFCookie = async () => {
   const csrf_token_data = await getCSRFToken();
 
   const validcsrftoken = validateCSRFTokenData(csrf_token_data);
-  
+
   if (!validcsrftoken) {
     throw new Error('Invalid CSRFToken');
-  };
+  }
 
   const encryptedSessionData = await encrypt(validcsrftoken);
 
@@ -54,36 +53,39 @@ export const setCSRFCookie = async () => {
     httpOnly: true,
     secure: process.env.HTTPS === 'true', // Secure in production
     maxAge: 60 * 60 * 24, // One day in seconds
-    path: BASE_ROUTE, // Dynamic path
+    path: '/', // Dynamic path
     sameSite: 'lax', // Helps prevent CSRF attacks
   });
 };
-
 
 export const updateSessionCookie = async (req) => {
   const session = req.cookies.get('__Secure-session');
 
   if (!session) {
     return false;
-  };
+  }
 
   const refresh_token = await getRefreshTokenFromSession();
 
   if (!refresh_token) {
     return false;
-  };
+  }
 
   const response = await refreshToken(refresh_token);
 
-  if (response.access_token && response.refresh_token 
-    && response.user_role && response.user_id 
-    && response.access_token_expiry) {
+  if (
+    response.access_token &&
+    response.refresh_token &&
+    response.user_role &&
+    response.user_id &&
+    response.access_token_expiry
+  ) {
     return await setSessionCookie(response);
   } else {
     await deleteSessionCookie();
     await deleteCSRFCookie();
     return false;
-  };
+  }
 };
 
 export const deleteSessionCookie = async () => {
@@ -94,10 +96,10 @@ export const deleteSessionCookie = async () => {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 0, // Expire the cookie immediately
-      path: BASE_ROUTE, // Ensure the cookie is deleted for all paths
+      path: '/', // Ensure the cookie is deleted for all paths
       sameSite: 'lax',
     });
-  };
+  }
 };
 
 export const deleteCSRFCookie = async () => {
@@ -108,10 +110,10 @@ export const deleteCSRFCookie = async () => {
       httpOnly: true,
       secure: process.env.HTTPS === 'true', // Secure in production
       maxAge: 0, // Expire the cookie immediately
-      path: BASE_ROUTE, // Ensure the cookie is deleted for all paths
+      path: '/', // Ensure the cookie is deleted for all paths
       sameSite: 'lax',
-    })
-  };
+    });
+  }
 };
 
 export const getCSRFTokenFromSession = async () => {
@@ -120,11 +122,11 @@ export const getCSRFTokenFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
@@ -132,7 +134,7 @@ export const getCSRFTokenFromSession = async () => {
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
 export const getCSRFTokenExpiryFromSession = async () => {
@@ -141,34 +143,35 @@ export const getCSRFTokenExpiryFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
 
-    if (decryptedData && decryptedData.csrf_token_expiry) { // Check if access_token_expiry is present
+    if (decryptedData && decryptedData.csrf_token_expiry) {
+      // Check if access_token_expiry is present
       const expiryDate = new Date(decryptedData.csrf_token_expiry);
       const currentDate = new Date();
 
       // Compare the expiry date with the current date
       if (currentDate > expiryDate) {
-        console.warn("CSRF has expired");
+        console.warn('CSRF has expired');
         return false;
       } else {
-        console.warn("CSRF is still valid");
+        console.warn('CSRF is still valid');
         return true;
-      };
-    };
+      }
+    }
 
     return false; // Return access_token_expiry if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
 export const getUserIdFromSession = async () => {
@@ -177,11 +180,11 @@ export const getUserIdFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
@@ -189,7 +192,7 @@ export const getUserIdFromSession = async () => {
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
 export const getUserRoleFromSession = async () => {
@@ -198,11 +201,11 @@ export const getUserRoleFromSession = async () => {
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
@@ -210,19 +213,19 @@ export const getUserRoleFromSession = async () => {
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
-export const getAccessTokenFromSession = async () =>  {
+export const getAccessTokenFromSession = async () => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
@@ -230,20 +233,20 @@ export const getAccessTokenFromSession = async () =>  {
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
-export const getRefreshTokenFromSession = async () =>  {
+export const getRefreshTokenFromSession = async () => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
@@ -251,41 +254,42 @@ export const getRefreshTokenFromSession = async () =>  {
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
 
-export const getAccessTokenExpiryFromSession = async () =>  {
+export const getAccessTokenExpiryFromSession = async () => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('__Secure-session'); // Retrieve the session cookie
 
   if (!sessionCookie) {
     return null; // No session cookie found
-  };
+  }
 
   if (!sessionCookie.value) {
     return null; // No session cookie value found
-  };
+  }
 
   try {
     const decryptedData = await decrypt(sessionCookie.value); // Decrypt the session data
 
-    if (decryptedData && decryptedData.access_token_expiry) { // Check if access_token_expiry is present
+    if (decryptedData && decryptedData.access_token_expiry) {
+      // Check if access_token_expiry is present
       const expiryDate = new Date(decryptedData.access_token_expiry);
       const currentDate = new Date();
 
       // Compare the expiry date with the current date
       if (currentDate > expiryDate) {
-        console.warn("Session has expired");
+        console.warn('Session has expired');
         return false;
       } else {
-        console.warn("Session is still valid");
+        console.warn('Session is still valid');
         return true;
-      };
-    };
+      }
+    }
 
     return false; // Return access_token_expiry if present
   } catch (error) {
     console.error('Error decrypting session data:', error);
     return null; // Return null if decryption fails
-  };
+  }
 };
