@@ -1,4 +1,4 @@
-import OtpForm from "@/components/Forms/OTPForm";
+import OtpForm from "@/components/Forms/OtpForm";
 import styles from "./page.module.css";
 
 export default function OtpPage() {
