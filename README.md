@@ -4,7 +4,7 @@
 
 **Superusers** and **Admins** have elevated priviliges where they can access the **Admin-dashboard** and can activate, deactivate, edit or delete an user according to thier priviliges.
 
-For more details, visit the [GitHub repository](https://github.com/wasee-sun/JWT_AUTH_django_rest).
+For more details, visit the [GitHub repository]().
 
 ## Features
 
@@ -15,58 +15,10 @@ For more details, visit the [GitHub repository](https://github.com/wasee-sun/JWT
 - **reCAPTCHA Integration**: Prevent automated abuse with Google's reCAPTCHA.
 - **Email & Phone Verification**: Ensure user identity with verification links and OTPs.
 - **Password Management**: Secure password reset functionality through verification links.
-- **Social Login**: Authenticate via Google, Facebook, and GitHub.
+- **Social Login (SSO)**: Authenticate via Google, Facebook, and GitHub.
 - **User Management**: Create, update, and manage user accounts with role-based access control.
 - **Account Activation and Deactivation**: Users can deactivate thier own accounts, (Admin and Super User have higher privileges).
 - **Rate Limiting**: Costly API endpoint calls are rate limited.
-
-## Installation
-
-To set up the project locally, follow these steps:
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/wasee-sun/JWT_AUTH_django_rest
-   cd JWT_AUTH_django_rest
-
-2. **Create a virtual environment**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-
-3. **Create .env files**:
-
-   Create `.env` files in the `backend` and `frontend` directories.
-   These env files contain sensitive information and should not be committed to version control. They must exist before running the setup script.
-   
-   See the env variable names in the [env-vars.md](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/env-vars.md) file.
-
-### Backend (Django) Setup
-
-1. **Navigate to the backend directory**:
-   ```bash
-   cd backend
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-3. **Apply database migrations**:
-   ```bash
-   python manage.py migrate
-4. **Start the Django server**:
-   ```bash
-   python manage.py runserver
-
-### Frontend (NextJS) Setup
-
-1. **Navigate to the frontend directory**:
-   ```bash
-   cd frontend
-2. **Install dependencies**:
-   ```bash
-   npm install
-3. **Start the Next.js development server**:
-   ```bash
-   npm run dev
 
 ## Usage
 
@@ -120,19 +72,10 @@ The API provides various endpoints for authentication and user management. Below
 - **POST /auth-api/users/<id>/deactivate/**: Deactivates a user.
 - **PATCH /auth-api/users/<id>/upload_image/**: Uploads a profile image.
 
-For detailed API documentation, including request and response formats, download the [API Documentation](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/Api-docs.docx).
+For detailed API documentation, including request and response formats, download the [API Documentation]().
 
-For testing the Backend API, download the [Swagger Schema Documentation](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/jwt-auth-api-schema.yaml).
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Commit your changes and push to your fork.
-4. Submit a pull request with a detailed description.
+For testing the Backend API, download the [Swagger Schema Documentation]().
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/wasee-sun/JWT_AUTH_django_rest/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE]() file for details.

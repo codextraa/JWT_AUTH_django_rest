@@ -11,16 +11,14 @@ import {
 } from "@/actions/userActions";
 import { getUserIdAction, logoutAction } from "@/actions/authActions";
 import { signOut } from "next-auth/react";
-import { BASE_ROUTE } from "@/route";
-import ProfileImage from "../Modals/ProfileImageModal"
+import ProfileImage from "../Modals/ProfileImageModal";
 import DeactivateModal from "../Modals/DeactivateModal";
 import {
   PhoneVerificationRequestButton,
-  UpdateButton, 
-  UploadImageButton
+  UpdateButton,
+  UploadImageButton,
 } from "../Buttons/Button";
 import styles from "./UpdateForm.module.css";
-
 
 export default function UpdatePage({ params }) {
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
@@ -31,14 +29,15 @@ export default function UpdatePage({ params }) {
   const [updateErrors, setUpdateErrors] = useState("");
   const router = useRouter();
 
-  useEffect(() => { // In developement react's strict mode calls this twice
+  useEffect(() => {
+    // In developement react's strict mode calls this twice
     fetchUser();
-    const otpRequired = sessionStorage.getItem('otpRequired');
-    const otpExpiry = sessionStorage.getItem('otpExpiry');
+    const otpRequired = sessionStorage.getItem("otpRequired");
+    const otpExpiry = sessionStorage.getItem("otpExpiry");
 
     if (!otpRequired || Date.now() > parseInt(otpExpiry, 10)) {
-      sessionStorage.removeItem('otpRequired');
-      sessionStorage.removeItem('otpExpiry');
+      sessionStorage.removeItem("otpRequired");
+      sessionStorage.removeItem("otpExpiry");
       setOtp(false);
     } else {
       setOtp(true);
@@ -58,18 +57,20 @@ export default function UpdatePage({ params }) {
       setSuccess("");
       setError(result.error);
       setUpdateErrors("");
-    };
+    }
   };
 
   const handleUpdate = async (formData) => {
-    if ((formData.get('username') === user.username
-      || !formData.get('username')) && 
-    (formData.get('first_name') === user.first_name
-      || (!formData.get('first_name') && !user.first_name)) &&
-    (formData.get('last_name') === user.last_name
-      || (!formData.get('last_name') && !user.last_name)) &&
-    (formData.get('phone_number') === user.phone_number
-      || (!formData.get('phone_number') && !user.phone_number))) {
+    if (
+      (formData.get("username") === user.username ||
+        !formData.get("username")) &&
+      (formData.get("first_name") === user.first_name ||
+        (!formData.get("first_name") && !user.first_name)) &&
+      (formData.get("last_name") === user.last_name ||
+        (!formData.get("last_name") && !user.last_name)) &&
+      (formData.get("phone_number") === user.phone_number ||
+        (!formData.get("phone_number") && !user.phone_number))
+    ) {
       setSuccess("");
       setError("No changes found.");
       setUpdateErrors("");
@@ -87,11 +88,12 @@ export default function UpdatePage({ params }) {
       setSuccess("");
       setError("");
       setUpdateErrors(result.error);
-    };
+    }
   };
 
   const handleUpload = async (file) => {
-    if (file.size > 2 * 1024 * 1024) { // 2 MB limit
+    if (file.size > 2 * 1024 * 1024) {
+      // 2 MB limit
       setSuccess("");
       setError("File size exceeds 2MB. Please upload a smaller image.");
       setUpdateErrors("");
@@ -111,7 +113,7 @@ export default function UpdatePage({ params }) {
       setSuccess("");
       setError(result.error);
       setUpdateErrors("");
-    };
+    }
   };
 
   const handlePhoneVerify = async () => {
@@ -126,14 +128,14 @@ export default function UpdatePage({ params }) {
       setSuccess(result.success);
       setError("");
       setUpdateErrors("");
-      sessionStorage.setItem('otpRequired', 'true');
-      sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-      router.push(`${BASE_ROUTE}/profile/phone-verify`);
+      sessionStorage.setItem("otpRequired", "true");
+      sessionStorage.setItem("otpExpiry", Date.now() + 600000); // 10 minutes
+      router.push(`/profile/phone-verify`);
     } else {
-      setError('Something went wrong, could not send OTP. Try again');
+      setError("Something went wrong, could not send OTP. Try again");
       setSuccess("");
       setUpdateErrors("");
-    };
+    }
   };
 
   const handleDeactivate = async () => {
@@ -145,17 +147,17 @@ export default function UpdatePage({ params }) {
       setUpdateErrors("");
       await logoutAction(); // DRF rejects request because is_active is false
       await signOut();
-      router.push(`${BASE_ROUTE}/auth/login`);
+      router.push(`/auth/login`);
     } else {
       setSuccess("");
       setError(result.error);
       setUpdateErrors("");
-    };
+    }
   };
 
   if (!user) {
-    return <div className={styles.loading}>Loading...</div>
-  };
+    return <div className={styles.loading}>Loading...</div>;
+  }
 
   return (
     <>
@@ -165,46 +167,89 @@ export default function UpdatePage({ params }) {
       </div>
       {success && <p className={styles.success}>{success}</p>}
       {error && <p className={styles.error}>{error}</p>}
-      {updateErrors.error && <p className={styles.error}>{updateErrors.error}</p>}
+      {updateErrors.error && (
+        <p className={styles.error}>{updateErrors.error}</p>
+      )}
       <form action={handleUpdate} className={styles.form}>
         <h2 className={styles.title}>Update Profile</h2>
         <div className={styles.formGroup}>
           <label htmlFor="email">Email</label>
-          <input type="email" id="email" name="email" value={user.email} disabled />
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={user.email}
+            disabled
+          />
         </div>
         <div className={styles.formGroup}>
           <label htmlFor="username">Username</label>
-          <input type="text" id="username" name="username" defaultValue={user.username} />
+          <input
+            type="text"
+            id="username"
+            name="username"
+            defaultValue={user.username}
+          />
         </div>
-        {updateErrors && updateErrors.username && <p className={styles.error}>{updateErrors.username}</p>}
+        {updateErrors && updateErrors.username && (
+          <p className={styles.error}>{updateErrors.username}</p>
+        )}
         <div className={styles.formGroup}>
           <label htmlFor="first_name">First Name</label>
-          <input type="text" id="first_name" name="first_name" defaultValue={user.first_name} />
+          <input
+            type="text"
+            id="first_name"
+            name="first_name"
+            defaultValue={user.first_name}
+          />
         </div>
-        {updateErrors && updateErrors.first_name && <p className={styles.error}>{updateErrors.first_name}</p>}
+        {updateErrors && updateErrors.first_name && (
+          <p className={styles.error}>{updateErrors.first_name}</p>
+        )}
         <div className={styles.formGroup}>
           <label htmlFor="last_name">Last Name</label>
-          <input type="text" id="last_name" name="last_name" defaultValue={user.last_name} />
+          <input
+            type="text"
+            id="last_name"
+            name="last_name"
+            defaultValue={user.last_name}
+          />
         </div>
-        {updateErrors && updateErrors.last_name && <p className={styles.error}>{updateErrors.last_name}</p>}
+        {updateErrors && updateErrors.last_name && (
+          <p className={styles.error}>{updateErrors.last_name}</p>
+        )}
         <div className={styles.formGroup}>
-          <label htmlFor="phone_number">Phone Number{user.is_phone_verified ? " (Verified)" : " (Not Verified)"}</label>
-          <input type="tel" id="phone_number" name="phone_number" defaultValue={user.phone_number} />
+          <label htmlFor="phone_number">
+            Phone Number
+            {user.is_phone_verified ? " (Verified)" : " (Not Verified)"}
+          </label>
+          <input
+            type="tel"
+            id="phone_number"
+            name="phone_number"
+            defaultValue={user.phone_number}
+          />
         </div>
-        {updateErrors && updateErrors.phone_number && <p className={styles.error}>{updateErrors.phone_number}</p>}
+        {updateErrors && updateErrors.phone_number && (
+          <p className={styles.error}>{updateErrors.phone_number}</p>
+        )}
         <div className={styles.buttons}>
           <UpdateButton />
-          {!user.is_phone_verified && user.phone_number && <PhoneVerificationRequestButton onClick={handlePhoneVerify} />}
+          {!user.is_phone_verified && user.phone_number && (
+            <PhoneVerificationRequestButton onClick={handlePhoneVerify} />
+          )}
           {otp && (
-          <Link href={`${BASE_ROUTE}/profile/phone-verify`} className={styles.otpButton}>
-            Verify OTP
-          </Link>
+            <Link href={`/profile/phone-verify`} className={styles.otpButton}>
+              Verify OTP
+            </Link>
           )}
         </div>
       </form>
       <div className={styles.buttons}>
-        {isDeactivateOpen && <DeactivateModal onDeactivate={handleDeactivate} />}
+        {isDeactivateOpen && (
+          <DeactivateModal onDeactivate={handleDeactivate} />
+        )}
       </div>
     </>
   );
-};
+}
