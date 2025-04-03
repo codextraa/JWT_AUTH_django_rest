@@ -214,46 +214,48 @@ class UserImageSerializer(serializers.ModelSerializer):
         return value
 
 
-class RecaptchaSerializer(serializers.Serializer): # pylint: disable=W0223
+class RecaptchaSerializer(serializers.Serializer):  # pylint: disable=W0223
     recaptcha_token = serializers.CharField(required=True)
 
 
-class LoginSerializer(serializers.Serializer): # pylint: disable=W0223
+class LoginSerializer(serializers.Serializer):  # pylint: disable=W0223
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
 
-class LogoutSerializer(serializers.Serializer): # pylint: disable=W0223
+class LogoutSerializer(serializers.Serializer):  # pylint: disable=W0223
     refresh = serializers.CharField(required=True)
 
 
-class ResendOtpSerializer(serializers.Serializer): # pylint: disable=W0223
+class ResendOtpSerializer(serializers.Serializer):  # pylint: disable=W0223
     user_id = serializers.CharField(required=True)
 
 
-class TokenRequestSerializer(serializers.Serializer): # pylint: disable=W0223
+class TokenRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
     user_id = serializers.CharField(required=True)
     otp = serializers.CharField(required=True)
 
 
-class RefreshTokenSerializer(serializers.Serializer): # pylint: disable=W0223
+class RefreshTokenSerializer(serializers.Serializer):  # pylint: disable=W0223
     refresh = serializers.CharField(required=True)
 
 
-class PhoneVerificationSerializer(serializers.Serializer): # pylint: disable=W0223
+class PhoneVerificationSerializer(serializers.Serializer):  # pylint: disable=W0223
     otp = serializers.CharField(required=True)
 
 
-class VerificationThroughEmailSerializer(serializers.Serializer): # pylint: disable=W0223
+class VerificationThroughEmailSerializer(
+    serializers.Serializer
+):  # pylint: disable=W0223
     email = serializers.EmailField(required=True)
 
 
-class InputPasswordResetSerializer(serializers.Serializer): # pylint: disable=W0223
+class InputPasswordResetSerializer(serializers.Serializer):  # pylint: disable=W0223
     password = serializers.CharField(required=True)
     c_password = serializers.CharField(required=True)
 
 
-class CreateUserSerializer(serializers.Serializer): # pylint: disable=W0223
+class CreateUserSerializer(serializers.Serializer):  # pylint: disable=W0223
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True)
     c_password = serializers.CharField(required=True)
@@ -264,13 +266,13 @@ class CreateUserSerializer(serializers.Serializer): # pylint: disable=W0223
     is_staff = serializers.BooleanField(required=False, default=False)
 
 
-class UpdateUserSerializer(serializers.Serializer): # pylint: disable=W0223
+class UpdateUserSerializer(serializers.Serializer):  # pylint: disable=W0223
     first_name = serializers.CharField(required=False)
     last_name = serializers.CharField(required=False)
     username = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
 
 
-class SocialOAuthSerializer(serializers.Serializer): # pylint: disable=W0223
+class SocialOAuthSerializer(serializers.Serializer):  # pylint: disable=W0223
     token = serializers.CharField(required=True)
     provider = serializers.CharField(required=True)

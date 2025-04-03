@@ -5,7 +5,6 @@ import { requestPasswordResetAction } from "@/actions/passwordActions";
 import { PasswordResetRequestButton } from "../Buttons/Button";
 import styles from "./PasswordResetRequestForm.module.css";
 
-
 export default function PasswordResetRequestForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -18,7 +17,7 @@ export default function PasswordResetRequestForm() {
     } else if (result.success) {
       setSuccess(result.success);
       setError("");
-    };
+    }
   };
 
   return (
@@ -27,11 +26,17 @@ export default function PasswordResetRequestForm() {
         <label htmlFor="email" className={styles.label}>
           Email
         </label>
-        <input type="email" id="email" name="email" required className={styles.input} />
+        <input
+          type="email"
+          id="email"
+          name="email"
+          required
+          className={styles.input}
+        />
       </div>
       <PasswordResetRequestButton />
       {error && <p className={styles.error}>{error}</p>}
       {success && <p className={styles.success}>{success}</p>}
     </form>
   );
-};
+}

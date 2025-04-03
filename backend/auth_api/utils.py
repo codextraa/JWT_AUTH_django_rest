@@ -37,7 +37,7 @@ class EmailOtp:
             email.send()
 
             return True
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             print(e)
             return False
 
@@ -48,7 +48,7 @@ class EmailOtp:
 
         try:
             request_otp = int(request_otp)
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             print(e)
             return False
 
@@ -100,7 +100,6 @@ class EmailLink:
         except BadSignature as exc:
             raise ValueError("Invalid verification link.") from exc
 
-
     @classmethod
     def send_email_link(cls, email):
         """Send the email with the verification link."""
@@ -118,7 +117,7 @@ class EmailLink:
             )
             email_message.send()
             return True
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             print(e)
             return False
 
@@ -139,7 +138,7 @@ class EmailLink:
             )
             email_message.send()
             return True
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             print(e)
             return False
 
@@ -158,7 +157,7 @@ class PhoneOtp:
         return otp
 
     @classmethod
-    def send_otp(cls, email, phone): # pylint: disable=unused-argument
+    def send_otp(cls, email, phone):  # pylint: disable=unused-argument
         """Send an OTP to the user's phone."""
         try:
             # phone_otp = cls.generate_otp()
@@ -174,7 +173,7 @@ class PhoneOtp:
             #     to=phone
             # )
             phone_otp = 000000  # For testing
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             print(e)
             return False
 

@@ -34,8 +34,11 @@ def _set_profile_image(provider, user, response, update=True):
 
     return user
 
+
 # pylint: disable=R0912
-def user_creation(backend, user, response, *args, **kwargs):  # pylint: disable=unused-argument
+def user_creation(
+    backend, user, response, *args, **kwargs
+):  # pylint: disable=unused-argument
     """Custom user creation pipeline function."""
     # print('response', response)
     # print('backend name', backend.name)
@@ -121,6 +124,6 @@ def user_creation(backend, user, response, *args, **kwargs):  # pylint: disable=
         # Set profile image if it exists
         return _set_profile_image(backend.name, new_user, response)
 
-    except Exception as e: # pylint: disable=W0718
+    except Exception as e:  # pylint: disable=W0718
         print(e)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -1,4 +1,4 @@
-"""Views for Auth API.""" # pylint: disable=C0302
+"""Views for Auth API."""  # pylint: disable=C0302
 
 import json
 from datetime import datetime, timezone, timedelta
@@ -141,7 +141,7 @@ def check_user_id(user_id):
 
     try:
         user_id = int(user_id)
-    except Exception as e: # pylint: disable=W0718
+    except Exception as e:  # pylint: disable=W0718
         print(e)
         return Response(
             {"error": "Invalid Session"}, status=status.HTTP_400_BAD_REQUEST
@@ -272,7 +272,7 @@ class CSRFTokenView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -325,7 +325,7 @@ class RecaptchaValidationView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        """Post a request to validate reCAPTCHA. 
+        """Post a request to validate reCAPTCHA.
         Returns a response with success or error message."""
         try:
             recaptcha_token = request.data.get("recaptcha_token")
@@ -353,7 +353,7 @@ class RecaptchaValidationView(APIView):
             return Response(
                 {"error": "Invalid JSON."}, status=status.HTTP_400_BAD_REQUEST
             )
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -413,15 +413,23 @@ class LoginView(APIView):
                             "items": {"type": "string"},
                             "example": [
                                 "Invalid credentials",
-                                ("Invalid credentials. You have X more attempt(s) "
-                                "before your account is deactivated."),
-                                ("Invalid credentials. Your account is deactivated."
-                                " Verify your email."),
-                                ("Invalid credentials. Your account is deactivated."
-                                " Contact an admin."),
+                                (
+                                    "Invalid credentials. You have X more attempt(s) "
+                                    "before your account is deactivated."
+                                ),
+                                (
+                                    "Invalid credentials. Your account is deactivated."
+                                    " Verify your email."
+                                ),
+                                (
+                                    "Invalid credentials. Your account is deactivated."
+                                    " Contact an admin."
+                                ),
                                 "Email and password are required",
-                                ("This process cannot be used, "
-                                "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                                 "Account is deactivated. Contact your admin",
                                 "Something went wrong, could not send OTP. Try again",
@@ -454,7 +462,7 @@ class LoginView(APIView):
         },
     )
     @method_decorator(csrf_protect)
-    def post(self, request, *args, **kwargs): # pylint: disable=R0911
+    def post(self, request, *args, **kwargs):  # pylint: disable=R0911
         """Post a request to login. Returns an OTP to the registered email."""
         try:
             email = request.data.get("email")
@@ -516,7 +524,8 @@ class LoginView(APIView):
                         {
                             "error": (
                                 f"Invalid credentials. You have {remaining_attempts} "
-                                "more attempt(s) before your account is deactivated.")
+                                "more attempt(s) before your account is deactivated."
+                            )
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
@@ -535,7 +544,7 @@ class LoginView(APIView):
 
             return response
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -595,8 +604,10 @@ class ResendOtpView(APIView):
                                 "Session expired. Please login again.",
                                 "Invalid Session",
                                 "Invalid credentials",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                                 "Account is deactivated. Contact your admin",
                                 "Something went wrong, could not send OTP. Try again",
@@ -653,7 +664,7 @@ class ResendOtpView(APIView):
 
             return response
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -703,8 +714,10 @@ class TokenView(TokenObtainPairView):
                                 "Invalid OTP",
                                 "Session expired. Please login again.",
                                 "Invalid credentials",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                                 "Account is deactivated. Contact your admin",
                                 "Invalid Session",
@@ -783,7 +796,7 @@ class TokenView(TokenObtainPairView):
 
             return response
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -833,8 +846,10 @@ class RefreshTokenView(TokenRefreshView):
                                 "Tokens are required",
                                 "Invalid tokens",
                                 "Invalid refresh token",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                             ],
                         },
@@ -916,7 +931,7 @@ class RefreshTokenView(TokenRefreshView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             # return Response({"error": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
             print(e)
             return Response(
@@ -1026,7 +1041,7 @@ class EmailVerifyView(APIView):
                 {"success": "Email verified successfully"}, status=status.HTTP_200_OK
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1045,7 +1060,8 @@ class EmailVerifyView(APIView):
                             "type": "string",
                             "example": (
                                 "Verification link sent. "
-                                "Please verify your email to activate your account."),
+                                "Please verify your email to activate your account."
+                            ),
                         }
                     },
                 },
@@ -1060,12 +1076,16 @@ class EmailVerifyView(APIView):
                             "items": {"type": "string"},
                             "example": [
                                 "Invalid credentials",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email already verified",
                                 "Failed to send email verification link.",
-                                ("Verification link sent. "
-                                 "Please verify your email to activate your account."),
+                                (
+                                    "Verification link sent. "
+                                    "Please verify your email to activate your account."
+                                ),
                             ],
                         }
                     },
@@ -1096,7 +1116,7 @@ class EmailVerifyView(APIView):
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        """Post a request to Email Verify View. 
+        """Post a request to Email Verify View.
         Email verification link is sent to the user's email."""
         try:
             email = request.data.get("email")
@@ -1146,7 +1166,7 @@ class EmailVerifyView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1257,7 +1277,7 @@ class PhoneVerifyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1345,7 +1365,7 @@ class PhoneVerifyView(APIView):
                 {"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1447,7 +1467,7 @@ class PasswordResetView(APIView):
                 {"success": "Password verification link ok"}, status=status.HTTP_200_OK
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1485,8 +1505,10 @@ class PasswordResetView(APIView):
                             "items": {"type": "string"},
                             "example": [
                                 "Invalid credentials",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                                 "Account is deactivated. Contact your admin",
                                 "Failed to send password reset link.",
@@ -1520,7 +1542,7 @@ class PasswordResetView(APIView):
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):
-        """Post a request to Password Reset View. 
+        """Post a request to Password Reset View.
         Password reset link is sent to the user's email address."""
         try:
             email = request.data.get("email")
@@ -1552,7 +1574,7 @@ class PasswordResetView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1605,8 +1627,10 @@ class PasswordResetView(APIView):
                                 "Missing verification link.",
                                 "The verification link has expired.",
                                 "Invalid credentials",
-                                ("This process cannot be used, "
-                                 "as user is created using {auth_provider}"),
+                                (
+                                    "This process cannot be used, "
+                                    "as user is created using {auth_provider}"
+                                ),
                                 "Email is not verified. You must verify your email first",
                                 "Account is deactivated. Contact your admin",
                                 "Failed to send password reset link.",
@@ -1626,7 +1650,7 @@ class PasswordResetView(APIView):
                                     "number": "Password must contain at least one number.",
                                     "special": (
                                         "Password must contain at "
-                                        "least one special character."\
+                                        "least one special character."
                                     ),
                                 },
                             ],
@@ -1647,7 +1671,7 @@ class PasswordResetView(APIView):
     )
     @method_decorator(csrf_protect)
     def patch(self, request, *args, **kwargs):
-        """Patch a request to Password Reset View. 
+        """Patch a request to Password Reset View.
         Password is reset using the provided token, expiry, and new password."""
         email = check_token_validity(request)
 
@@ -1702,9 +1726,7 @@ class UserViewSet(ModelViewSet):
             permission_classes = [AllowAny]
         elif self.action == "deactivate_user":  # Only Admins are allowed
             permission_classes = [IsAuthenticated]
-        elif (
-            self.action in ("activate_user", "delete")
-        ):  # Only Admins are allowed
+        elif self.action in ("activate_user", "delete"):  # Only Admins are allowed
             permission_classes = [IsAuthenticated, IsAdminUser]
         else:  # RUD operations need permissions
             permission_classes = [IsAuthenticated]
@@ -1714,8 +1736,9 @@ class UserViewSet(ModelViewSet):
         """Return the serializer class for the action."""
         if self.action == "list":  # List of users handled with different serializer
             return UserListSerializer
-        if (
-            self.action in ("deactivate_user", "activate_user")
+        if self.action in (
+            "deactivate_user",
+            "activate_user",
         ):  # Deactivation handled with different serializer
             return UserActionSerializer
         if self.action == "upload_image":  # Image handled with different serializer
@@ -1862,7 +1885,7 @@ class UserViewSet(ModelViewSet):
                                         "number": "Password must contain at least one number.",
                                         "special": (
                                             "Password must contain at "
-                                            "least one special character."\
+                                            "least one special character."
                                         ),
                                     },
                                 },
@@ -1880,11 +1903,15 @@ class UserViewSet(ModelViewSet):
                             "type": "array",
                             "items": {"type": "string"},
                             "example": [
-                                ("You do not have permission to create a superuser. "
-                                 "Contact Developer."),
+                                (
+                                    "You do not have permission to create a superuser. "
+                                    "Contact Developer."
+                                ),
                                 "You do not have permission to create an admin user.",
-                                ("Profile Image cannot be updated here. "
-                                 "Use the Upload Image Action."),
+                                (
+                                    "Profile Image cannot be updated here. "
+                                    "Use the Upload Image Action."
+                                ),
                                 "Forbidden fields cannot be updated.",
                             ],
                         }
@@ -1915,7 +1942,7 @@ class UserViewSet(ModelViewSet):
         },
     )
     @method_decorator(csrf_protect)
-    def create(self, request, *args, **kwargs): # pylint: disable=R0911
+    def create(self, request, *args, **kwargs):  # pylint: disable=R0911
         """Create new user and send email verification link."""
         current_user = self.request.user
 
@@ -2015,7 +2042,7 @@ class UserViewSet(ModelViewSet):
         },
     )
     @method_decorator(csrf_protect)
-    def update(self, request, *args, **kwargs): # pylint: disable=R0911
+    def update(self, request, *args, **kwargs):  # pylint: disable=R0911
         """Allow only users to update their own profile. SuperUser can update any profile.
         Patch method allowed, Put method not allowed"""
         method = self.http_method_not_allowed(request)
@@ -2047,7 +2074,7 @@ class UserViewSet(ModelViewSet):
             )
 
         if (
-            "slug" in request.data # pylint: disable=R0916
+            "slug" in request.data  # pylint: disable=R0916
             or "is_email_verified" in request.data
             or "is_phone_verified" in request.data
             or "is_active" in request.data
@@ -2126,8 +2153,10 @@ class UserViewSet(ModelViewSet):
                             "example": [
                                 "You cannot update the email field.",
                                 "Password reset cannot be done without verification link.",
-                                ("Profile Image cannot be updated here."
-                                 " Use the Upload Image Action."),
+                                (
+                                    "Profile Image cannot be updated here."
+                                    " Use the Upload Image Action."
+                                ),
                                 "Forbidden fields cannot be updated.",
                                 "You do not have permission to update this user.",
                             ],
@@ -2333,7 +2362,7 @@ class UserViewSet(ModelViewSet):
         url_path="upload-image",
         parser_classes=[MultiPartParser, FormParser],
     )  # detail=True is only for a single user
-    def upload_image(self, request, pk=None): # pylint: disable=unused-argument
+    def upload_image(self, request, pk=None):  # pylint: disable=unused-argument
         """Update user profile image"""
         user = self.get_object()  # get the user
         current_user = self.request.user  # Get the user making the request
@@ -2432,7 +2461,9 @@ class UserViewSet(ModelViewSet):
     )
     @method_decorator(csrf_protect)
     @action(detail=True, methods=["PATCH"], url_path="deactivate-user")
-    def deactivate_user(self, request, pk=None): # pylint: disable=unused-argument, R0911
+    def deactivate_user(
+        self, request, pk=None
+    ):  # pylint: disable=unused-argument, R0911
         """Deactivate a user (only staff and superuser can do to other users)"""
         try:
             user_to_deactivate = self.get_object()
@@ -2481,7 +2512,7 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -2545,7 +2576,7 @@ class UserViewSet(ModelViewSet):
     )
     @method_decorator(csrf_protect)
     @action(detail=True, methods=["PATCH"], url_path="activate-user")
-    def activate_user(self, request, pk=None): # pylint: disable=unused-argument
+    def activate_user(self, request, pk=None):  # pylint: disable=unused-argument
         """Activate a user (only staff and superuser can do this)"""
         try:
             user_to_activate = self.get_object()
@@ -2583,7 +2614,7 @@ class UserViewSet(ModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -2658,7 +2689,7 @@ class LogoutView(APIView):
                 {"success": "Logged out successfully"}, status=status.HTTP_200_OK
             )
 
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -2701,10 +2732,14 @@ class SocialAuthView(APIView):
                                 "Token and provider are required",
                                 "Account is deactivated. Contact your admin.",
                                 "Authentication failed, user not found",
-                                ("User with this email already created using password."
-                                 " Please login using password."),
-                                ("User with this email already created using {auth_provider}."
-                                 " Please login using {auth_provider}."),
+                                (
+                                    "User with this email already created using password."
+                                    " Please login using password."
+                                ),
+                                (
+                                    "User with this email already created using {auth_provider}."
+                                    " Please login using {auth_provider}."
+                                ),
                             ],
                         }
                     },
@@ -2721,7 +2756,7 @@ class SocialAuthView(APIView):
             ),
         },
     )
-    def post(self, request, *args, **kwargs): # pylint: disable=R0911
+    def post(self, request, *args, **kwargs):  # pylint: disable=R0911
         token = request.data.get("token")
         provider = request.data.get("provider")
         if not token or not provider:
@@ -2764,7 +2799,7 @@ class SocialAuthView(APIView):
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

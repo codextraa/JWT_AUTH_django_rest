@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "XXXXXXX")
+SECRET_KEY = os.getenv("SECRET_KEY")
 PRIVATE_KEY = os.getenv("private_key")
 PUBLIC_KEY = os.getenv("public_key")
 
@@ -37,10 +37,13 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 # NEXT_API_SECRET_KEY
 NEXT_API_SECRET_KEY = os.getenv("NEXT_API_SECRET_KEY")
 
+# MEDIA_URLS
+HTTP_MEDIA_URL = os.getenv("HTTP_MEDIA_URL")
+HTTPS_MEDIA_URL = os.getenv("HTTPS_MEDIA_URL")
+
 # localhost or NGINX reverse proxy
 HTTPS = os.getenv("HTTPS") == "True"
-
-if HTTPS == "True" or DJANGO_ENV == "production":
+if HTTPS or DJANGO_ENV == "production":
     BACKEND_URL = os.getenv("HTTPS_BACKEND_URL")
     FRONTEND_URL = os.getenv("HTTPS_FRONTEND_URL")
 else:
@@ -110,12 +113,12 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": os.getenv("DATABASE_ENGINE"),
-        "NAME": os.getenv("DATABASE_NAME"),
-        "USER": os.getenv("DATABASE_USER"),
-        "PASSWORD": os.getenv("DATABASE_PASSWORD"),
-        "HOST": os.getenv("DATABASE_HOST", "localhost"),
-        "PORT": os.getenv("DATABASE_PORT", "5432"),
+        "ENGINE": os.getenv("DB_ENGINE"),
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT"),
     }
 }
 
@@ -156,7 +159,7 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = "/static/"
-if HTTPS == "True":
+if HTTPS:
     STATIC_ROOT = "/app/static"
 else:
     STATIC_ROOT = os.path.join(BASE_DIR, "static")
@@ -164,9 +167,9 @@ else:
 # Media files
 if DJANGO_ENV == "development":
     if HTTPS:
-        MEDIA_URL = "https://todo-app.dev.local/media/"
+        MEDIA_URL = HTTPS_MEDIA_URL
     else:
-        MEDIA_URL = "/media/"
+        MEDIA_URL = HTTP_MEDIA_URL
     MEDIA_ROOT = "/app/media"
 else:
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
