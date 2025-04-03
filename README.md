@@ -4,7 +4,7 @@
 
 **Superusers** and **Admins** have elevated priviliges where they can access the **Admin-dashboard** and can activate, deactivate, edit or delete an user according to thier priviliges.
 
-For more details, visit the [GitHub repository]().
+For more details, visit the [GitHub repository](https://github.com/codextraa/JWT_AUTH_django_rest).
 
 ## Features
 
@@ -72,10 +72,10 @@ The API provides various endpoints for authentication and user management. Below
 - **POST /auth-api/users/<id>/deactivate/**: Deactivates a user.
 - **PATCH /auth-api/users/<id>/upload_image/**: Uploads a profile image.
 
-For detailed API documentation, including request and response formats, download the [API Documentation]().
+For detailed API documentation, including request and response formats, download the [API Documentation](https://github.com/codextraa/JWT_AUTH_django_rest/blob/main/Api-docxs.pdf).
 
-For testing the Backend API, download the [Swagger Schema Documentation]().
+For testing the Backend API, download the [Swagger Schema Documentation](https://github.com/codextraa/JWT_AUTH_django_rest/blob/main/jwt-auth-api-schema.yaml).
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE]() file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/codextraa/JWT_AUTH_django_rest/blob/main/LICENSE) file for details.

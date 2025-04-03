@@ -7,7 +7,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: process.env.NEXTJS_IMAGE_HOST,
+        hostname: process.env.NEXTJS_IMAGE_HOST || "localhost",
       },
       {
         protocol: "https",
