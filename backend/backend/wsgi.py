@@ -11,12 +11,14 @@ import os
 import threading
 import time
 from django.core.wsgi import get_wsgi_application
-from django.utils.timezone import now
-from rest_framework_simplejwt.tokens import OutstandingToken
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
 
 application = get_wsgi_application()
+
+# pylint: disable=C0413
+from django.utils.timezone import now
+from rest_framework_simplejwt.tokens import OutstandingToken
 
 
 def cleanup_task():
