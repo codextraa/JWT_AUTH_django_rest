@@ -31,4 +31,4 @@ export default function ProfileImage({ src, alt }) {
       )}
     </div>
   );
-};
+}

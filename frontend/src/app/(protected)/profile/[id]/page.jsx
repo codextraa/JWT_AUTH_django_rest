@@ -1,7 +1,6 @@
 import UpdatePage from "@/components/Forms/UpdateForm";
 import styles from "./page.module.css";
 
-
 export default function ProfilePage({ params }) {
   return (
     <div className={styles.container}>
@@ -9,4 +8,4 @@ export default function ProfilePage({ params }) {
       <UpdatePage params={params} />
     </div>
   );
-};
+}

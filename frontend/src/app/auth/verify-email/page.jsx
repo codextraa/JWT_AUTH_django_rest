@@ -13,4 +13,4 @@ export default async function EmailVerificationPage({ searchParams }) {
       <EmailVerificationResult result={verificationResult} />
     </div>
   );
-};
+}

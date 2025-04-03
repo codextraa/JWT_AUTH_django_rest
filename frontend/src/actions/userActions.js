@@ -1,5 +1,5 @@
-'use server';
-import { 
+"use server";
+import {
   verifyEmail,
   requestEmailVerification,
   verifyPhone,
@@ -11,38 +11,42 @@ import {
   deleteUser,
   activateUser,
   deactivateUser,
-  uploadProfileImage
+  uploadProfileImage,
 } from "@/libs/api";
-
 
 export const signUpError = async (response) => {
   if (typeof response.error === "object") {
     const errorMessages = {};
 
     if (response.error.email) {
-      errorMessages['email'] = response.error.email[0][0].toUpperCase() + 
-      response.error.email[0].slice(1).toLowerCase();
-    };
+      errorMessages["email"] =
+        response.error.email[0][0].toUpperCase() +
+        response.error.email[0].slice(1).toLowerCase();
+    }
 
     if (response.error.username) {
-      errorMessages['username'] = response.error.username[0][0].toUpperCase() + 
-      response.error.username[0].slice(1).toLowerCase();
-    };
+      errorMessages["username"] =
+        response.error.username[0][0].toUpperCase() +
+        response.error.username[0].slice(1).toLowerCase();
+    }
 
     if (response.error.first_name) {
-      errorMessages['first_name'] = response.error.first_name[0][0].toUpperCase() + 
-      response.error.first_name[0].slice(1).toLowerCase();
-    };
+      errorMessages["first_name"] =
+        response.error.first_name[0][0].toUpperCase() +
+        response.error.first_name[0].slice(1).toLowerCase();
+    }
 
     if (response.error.last_name) {
-      errorMessages['last_name'] = response.error.last_name[0][0].toUpperCase() + 
-      response.error.last_name[0].slice(1).toLowerCase();
-    };
+      errorMessages["last_name"] =
+        response.error.last_name[0][0].toUpperCase() +
+        response.error.last_name[0].slice(1).toLowerCase();
+    }
 
     if (response.error.phone_number) {
-      errorMessages['phone_number'] = response.error.phone_number[0][0].toUpperCase() + 
-      response.error.phone_number[0].slice(1).toLowerCase();
-    };
+      errorMessages["phone_number"] =
+        response.error.phone_number[0][0].toUpperCase() +
+        response.error.phone_number[0].slice(1).toLowerCase();
+    }
 
     // Check for each possible attribute and append its messages
     if (response.error.password) {
@@ -51,32 +55,34 @@ export const signUpError = async (response) => {
 
       if (error.short) {
         passErrorMessages.push(...[error.short]);
-      };
+      }
       if (error.upper) {
         passErrorMessages.push(...[error.upper]);
-      };
+      }
       if (error.lower) {
         passErrorMessages.push(...[error.lower]);
-      };
+      }
       if (error.number) {
         passErrorMessages.push(...[error.number]);
-      };
+      }
       if (error.special) {
         passErrorMessages.push(...[error.special]);
-      };
-      
-      if (passErrorMessages.length === 0) {
-        passErrorMessages.push(...[error[0][0].toUpperCase() + error[0].slice(1).toLowerCase()]);
-      };
+      }
 
-      errorMessages['password'] = passErrorMessages.join(" ");
-    };
+      if (passErrorMessages.length === 0) {
+        passErrorMessages.push(
+          ...[error[0][0].toUpperCase() + error[0].slice(1).toLowerCase()],
+        );
+      }
+
+      errorMessages["password"] = passErrorMessages.join(" ");
+    }
 
     // Combine messages into a single string with \n between each
     return { error: errorMessages };
   }
   // If it's not an object, return the error as is (string or other type)
-  return { error: { error : response.error } };
+  return { error: { error: response.error } };
 };
 
 export const updateActionError = async (response) => {
@@ -84,30 +90,34 @@ export const updateActionError = async (response) => {
     const errorMessages = {};
 
     if (response.error.username) {
-      errorMessages['username'] = response.error.username[0][0].toUpperCase() + 
-      response.error.username[0].slice(1).toLowerCase();
-    };
+      errorMessages["username"] =
+        response.error.username[0][0].toUpperCase() +
+        response.error.username[0].slice(1).toLowerCase();
+    }
 
     if (response.error.first_name) {
-      errorMessages['first_name'] = response.error.first_name[0][0].toUpperCase() + 
-      response.error.first_name[0].slice(1).toLowerCase();
-    };
+      errorMessages["first_name"] =
+        response.error.first_name[0][0].toUpperCase() +
+        response.error.first_name[0].slice(1).toLowerCase();
+    }
 
     if (response.error.last_name) {
-      errorMessages['last_name'] = response.error.last_name[0][0].toUpperCase() + 
-      response.error.last_name[0].slice(1).toLowerCase();
-    };
+      errorMessages["last_name"] =
+        response.error.last_name[0][0].toUpperCase() +
+        response.error.last_name[0].slice(1).toLowerCase();
+    }
 
     if (response.error.phone_number) {
-      errorMessages['phone_number'] = response.error.phone_number[0][0].toUpperCase() + 
-      response.error.phone_number[0].slice(1).toLowerCase();
-    };
+      errorMessages["phone_number"] =
+        response.error.phone_number[0][0].toUpperCase() +
+        response.error.phone_number[0].slice(1).toLowerCase();
+    }
 
     return { error: errorMessages };
   }
 
-  return { error: { error : response.error } };
-}
+  return { error: { error: response.error } };
+};
 
 export const verifyEmailAction = async (token, expiry) => {
   try {
@@ -115,13 +125,13 @@ export const verifyEmailAction = async (token, expiry) => {
 
     if (response.error) {
       return { error: response.error };
-    };
-    
+    }
+
     return { success: true };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Token expired or invalid." };
-  };
+  }
 };
 
 export const requestEmailVerificationAction = async (formData) => {
@@ -131,15 +141,15 @@ export const requestEmailVerificationAction = async (formData) => {
 
   try {
     const response = await requestEmailVerification(data);
-    
+
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
-    return { success: true }; 
+    return { success: true };
   } catch (error) {
     console.error(error);
-    return { error: error.message || "Failed to send verification link." }
+    return { error: error.message || "Failed to send verification link." };
   }
 };
 
@@ -153,36 +163,36 @@ export const verifyPhoneAction = async (fromData) => {
 
     if (response.error) {
       return { error: response.error };
-    };
-    
+    }
+
     return { success: true };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Token expired or invalid." };
-  };
+  }
 };
 
-export const requestPhoneVerificationAction = async () => {;
+export const requestPhoneVerificationAction = async () => {
   try {
     const response = await requestPhoneVerification({});
-    
+
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
-    return { success: true }; 
+    return { success: true };
   } catch (error) {
     console.error(error);
-    return { error: error.message || "Failed to send verification link." }
-  };
+    return { error: error.message || "Failed to send verification link." };
+  }
 };
 
 export const getUsersAction = async (queryParams = {}) => {
   try {
-    const response = await getUsers(queryParams)
+    const response = await getUsers(queryParams);
 
     if (response.error) {
-      return { error: response.error }
+      return { error: response.error };
     }
 
     return {
@@ -193,12 +203,12 @@ export const getUsersAction = async (queryParams = {}) => {
         next: response.next ? new URL(response.next).search : null,
         previous: response.previous ? new URL(response.previous).search : null,
       },
-    }
+    };
   } catch (error) {
-    console.error(error)
-    return { error: error.message || "Failed to fetch users." }
+    console.error(error);
+    return { error: error.message || "Failed to fetch users." };
   }
-}
+};
 
 export const getUserAction = async (id) => {
   try {
@@ -206,16 +216,16 @@ export const getUserAction = async (id) => {
 
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
     return { data: response };
   } catch (error) {
     console.error(error);
-    return { error: error.message || "Failed to fetch user." }
+    return { error: error.message || "Failed to fetch user." };
   }
 };
 
-export const createUserAction = async (formData, user="user") => {
+export const createUserAction = async (formData, user = "user") => {
   const email = formData.get("email");
   const username = formData.get("username");
   const first_name = formData.get("first_name");
@@ -228,7 +238,7 @@ export const createUserAction = async (formData, user="user") => {
 
   if (!email) {
     errors.email = "Email is required.";
-  } else if (!email.includes('@')) {
+  } else if (!email.includes("@")) {
     errors.email = "Invalid email format.";
   }
 
@@ -256,7 +266,7 @@ export const createUserAction = async (formData, user="user") => {
     ...(phone_number && { phone_number }),
     ...(user === "admin" && { is_staff: true }),
     password,
-    c_password
+    c_password,
   };
 
   try {
@@ -264,13 +274,13 @@ export const createUserAction = async (formData, user="user") => {
 
     if (response.error) {
       return signUpError(response);
-    };
-    
+    }
+
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to create user." };
-  };
+  }
 };
 
 export const updateUserAction = async (id, formData) => {
@@ -291,13 +301,13 @@ export const updateUserAction = async (id, formData) => {
 
     if (response.error) {
       return updateActionError(response);
-    };
+    }
 
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to update user." };
-  };
+  }
 };
 
 export const deleteUserAction = async (id) => {
@@ -306,13 +316,13 @@ export const deleteUserAction = async (id) => {
 
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to delete user." };
-  };
+  }
 };
 
 export const activateUserAction = async (id) => {
@@ -321,13 +331,13 @@ export const activateUserAction = async (id) => {
 
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to activate user." };
-  };
+  }
 };
 
 export const deactivateUserAction = async (id) => {
@@ -336,13 +346,13 @@ export const deactivateUserAction = async (id) => {
 
     if (response.error) {
       return { error: response.error };
-    };
+    }
 
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to deactivate user." };
-  };
+  }
 };
 
 export const uploadProfileImageAction = async (id, formData) => {
@@ -354,11 +364,11 @@ export const uploadProfileImageAction = async (id, formData) => {
         return { error: response.error.profile_img };
       }
       return { error: response.error };
-    };
+    }
 
     return { success: response.success };
   } catch (error) {
     console.error(error);
     return { error: error.message || "Failed to upload profile image." };
-  };
+  }
 };

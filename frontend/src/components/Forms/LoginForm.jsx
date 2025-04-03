@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { BASE_ROUTE } from '@/route';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { loginAction, recaptchaVerifyAction } from '@/actions/authActions';
-import { encrypt } from '@/libs/session';
-import styles from './LoginForm.module.css';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { loginAction, recaptchaVerifyAction } from "@/actions/authActions";
+import { encrypt } from "@/libs/session";
+import styles from "./LoginForm.module.css";
 import {
   LoginButton,
   GoogleLoginButton,
@@ -16,29 +15,29 @@ import {
   // InstagramLoginButton,
   // TwitterLoginButton,
   // LinkedInLoginButton,
-} from '../Buttons/Button';
+} from "../Buttons/Button";
 
 export default function LoginForm() {
   const router = useRouter();
   const [otp, setOtp] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
   useEffect(() => {
     // Check for error parameter in URL
     const searchParams = new URLSearchParams(window.location.search);
-    const urlError = searchParams.get('error');
+    const urlError = searchParams.get("error");
     if (urlError) {
       setError(urlError);
     }
 
-    const otpRequired = sessionStorage.getItem('otpRequired');
-    const otpExpiry = sessionStorage.getItem('otpExpiry');
+    const otpRequired = sessionStorage.getItem("otpRequired");
+    const otpExpiry = sessionStorage.getItem("otpExpiry");
 
     if (!otpRequired || Date.now() > parseInt(otpExpiry, 10)) {
-      sessionStorage.removeItem('otpRequired');
-      sessionStorage.removeItem('otpExpiry');
+      sessionStorage.removeItem("otpRequired");
+      sessionStorage.removeItem("otpExpiry");
       setOtp(false);
     } else {
       setOtp(true);
@@ -47,8 +46,8 @@ export default function LoginForm() {
 
   useEffect(() => {
     // Dynamically load reCAPTCHA script
-    const script = document.createElement('script');
-    script.src = 'https://www.google.com/recaptcha/api.js';
+    const script = document.createElement("script");
+    script.src = "https://www.google.com/recaptcha/api.js";
     script.async = true;
     script.defer = true;
     document.body.appendChild(script);
@@ -58,7 +57,7 @@ export default function LoginForm() {
         setIsRecaptchaVerified(true);
       } else {
         setIsRecaptchaVerified(false);
-      };
+      }
     };
 
     return () => {
@@ -67,63 +66,70 @@ export default function LoginForm() {
   }, []);
 
   const handleSubmit = async (formData) => {
+    /* eslint-disable no-undef */
     const recaptchaResponse = grecaptcha.getResponse();
 
     if (!recaptchaResponse) {
-      setError('Please verify you are not a robot.');
+      setError("Please verify you are not a robot.");
       return;
-    };
+    }
 
     const recaptchaValidRes = await recaptchaVerifyAction(recaptchaResponse);
 
     if (recaptchaValidRes.error) {
       setError(recaptchaValidRes.error);
       return;
-    };
+    }
 
-    if (formData.has('login')) {
+    if (formData.has("login")) {
       const result = await loginAction(formData);
 
       if (result.error) {
         setError(result.error);
-        setSuccess('');
+        setSuccess("");
       } else if (result.success && result.otp) {
         setOtp(true);
         try {
           const userId = await encrypt(result.user_id);
-          sessionStorage.setItem('user_id', userId);
+          sessionStorage.setItem("user_id", userId);
         } catch (error) {
-          console.error('Error encrypting user_id:', error);
-          setError('Something went wrong. Try again');
+          console.error("Error encrypting user_id:", error);
+          setError("Something went wrong. Try again");
           return;
         }
         setSuccess(result.success);
-        setError('');
-        sessionStorage.setItem('otpRequired', 'true');
-        sessionStorage.setItem('otpExpiry', Date.now() + 600000); // 10 minutes
-        router.push(`${BASE_ROUTE}/auth/otp`);
+        setError("");
+        sessionStorage.setItem("otpRequired", "true");
+        sessionStorage.setItem("otpExpiry", Date.now() + 600000); // 10 minutes
+        router.push(`/auth/otp`);
       } else {
-        setError('Something went wrong, could not send OTP. Try again');
-      };
+        setError("Something went wrong, could not send OTP. Try again");
+      }
     } else {
-      const provider = formData.has('google') ? 'google' : formData.has('facebook') ? 'facebook' : formData.has('github') ? 'github' : '';
+      const provider = formData.has("google")
+        ? "google"
+        : formData.has("facebook")
+          ? "facebook"
+          : formData.has("github")
+            ? "github"
+            : "";
 
       if (!provider) {
-        setError('Please select a provider');
+        setError("Please select a provider");
         return;
-      };
+      }
 
       try {
-        await signIn(provider, { redirectTo: `${BASE_ROUTE}` });
+        await signIn(provider, { redirectTo: "/" });
       } catch (error) {
-        console.error('Error signing in:', error);
-        setError('Something went wrong. Try again');
-      };
-    };
+        console.error("Error signing in:", error);
+        setError("Something went wrong. Try again");
+      }
+    }
 
-    if (typeof grecaptcha !== 'undefined') {
+    if (typeof grecaptcha !== "undefined") {
       grecaptcha.reset();
-    };
+    }
     setIsRecaptchaVerified(false);
   };
 
@@ -146,19 +152,22 @@ export default function LoginForm() {
       ></div>
       <LoginButton disabled={!isRecaptchaVerified} />
       <div className={styles.actionLinks}>
-        <Link href={`${BASE_ROUTE}/auth/register`} className={styles.forgotPassword}>
+        <Link href={`/auth/register`} className={styles.forgotPassword}>
           Register an account
         </Link>
-        <Link href={`${BASE_ROUTE}/auth/verify-email/request`} className={styles.verifyOtp}>
+        <Link href={`/auth/verify-email/request`} className={styles.verifyOtp}>
           Verify Email
         </Link>
       </div>
       <div className={styles.actionLinks}>
-        <Link href={`${BASE_ROUTE}/auth/reset-password/request`} className={styles.forgotPassword}>
+        <Link
+          href={`/auth/reset-password/request`}
+          className={styles.forgotPassword}
+        >
           Forgot Password?
         </Link>
         {otp && (
-          <Link href={`${BASE_ROUTE}/auth/otp`} className={styles.verifyOtp}>
+          <Link href={`/auth/otp`} className={styles.verifyOtp}>
             Verify OTP
           </Link>
         )}
@@ -173,4 +182,4 @@ export default function LoginForm() {
       </div>
     </form>
   );
-};
+}
