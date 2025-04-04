@@ -63,7 +63,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       if (result?.error) {
-        return "/auth/login?error=${result.error}";
+        return `/auth/login?error=${result.error}`;
       }
 
       return true;
