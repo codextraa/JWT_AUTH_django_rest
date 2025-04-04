@@ -1,4 +1,5 @@
 import random
+import logging
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 from django.core.cache import cache
@@ -10,6 +11,9 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 
 APP_NAME = settings.APP_NAME
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EmailOtp:
@@ -38,7 +42,7 @@ class EmailOtp:
 
             return True
         except Exception as e:  # pylint: disable=W0718
-            print(e)
+            logger.error("Error sending email: %s", e)
             return False
 
     @staticmethod
@@ -49,7 +53,7 @@ class EmailOtp:
         try:
             request_otp = int(request_otp)
         except Exception as e:  # pylint: disable=W0718
-            print(e)
+            logger.error("Error sending email: %s", e)
             return False
 
         if stored_otp != request_otp:
@@ -118,7 +122,7 @@ class EmailLink:
             email_message.send()
             return True
         except Exception as e:  # pylint: disable=W0718
-            print(e)
+            logger.error("Error sending email: %s", e)
             return False
 
     @classmethod
@@ -139,7 +143,7 @@ class EmailLink:
             email_message.send()
             return True
         except Exception as e:  # pylint: disable=W0718
-            print(e)
+            logger.error("Error sending email: %s", e)
             return False
 
 
@@ -174,7 +178,7 @@ class PhoneOtp:
             # )
             phone_otp = 000000  # For testing
         except Exception as e:  # pylint: disable=W0718
-            print(e)
+            logger.error("Error sending email: %s", e)
             return False
 
         cache.set(f"phone_otp_{phone}", phone_otp, 600)
