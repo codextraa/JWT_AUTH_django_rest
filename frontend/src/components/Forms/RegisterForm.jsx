@@ -75,6 +75,10 @@ export default function RegisterForm() {
         setIsRecaptchaVerified(false);
       }
     };
+
+    return () => {
+      document.body.removeChild(script);
+    };
   };
 
   const handleSubmit = async (formData) => {

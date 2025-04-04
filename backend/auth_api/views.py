@@ -2391,11 +2391,17 @@ class UserViewSet(ModelViewSet):
             # Remove the previous image file
             user.profile_img.delete(save=False)
 
-        serializer = self.get_serializer(
-            user, data=request.data, partial=True  # Only updating profile_img
-        )
-        serializer.is_valid(raise_exception=True)  # returns 400 if fails
-        serializer.save()
+        image = request.data.get("profile_img")
+
+        if image.name == "default_profile.jpg":
+            user.profile_img = default_image_path  # Set the image to the default image
+            user.save()
+        else:
+            serializer = self.get_serializer(
+                user, data=request.data, partial=True  # Only updating profile_img
+            )
+            serializer.is_valid(raise_exception=True)  # returns 400 if fails
+            serializer.save()
 
         return Response(
             {"success": "Image uploaded successfully."}, status=status.HTTP_200_OK

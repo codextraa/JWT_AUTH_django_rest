@@ -1,8 +1,16 @@
 const ALGORITHM = "AES-GCM";
-const SECRET_KEY =
-  typeof window !== "undefined"
-    ? process.env.NEXT_PUBLIC_AUTH_SECRET_KEY
-    : process.env.AUTH_SECRET_KEY;
+let SECRET_KEY;
+
+const get_secret_key = async () => {
+  if (typeof window !== "undefined") {
+    const response = await fetch("/api/auth-secret-key");
+    const data = await response.json();
+    console.log("data", data);
+    SECRET_KEY = data.auth_secret_key;
+  } else {
+    SECRET_KEY = process.env.AUTH_SECRET_KEY;
+  }
+};
 
 export function validateSessionData(data) {
   // Check that the data is an object
@@ -88,10 +96,13 @@ export function validateCSRFTokenData(data) {
  * @returns {Promise<string>} - Encrypted data in base64 format
  */
 export async function encrypt(data) {
-  if (!SECRET_KEY || SECRET_KEY.length !== 64) {
-    throw new Error(
-      "Invalid SECRET_KEY. Ensure it is a 64-character hex string.",
-    );
+  if (!SECRET_KEY) {
+    await get_secret_key();
+    if (!SECRET_KEY || SECRET_KEY.length !== 64) {
+      throw new Error(
+        "Invalid SECRET_KEY. Ensure it is a 64-character hex string.",
+      );
+    }
   }
 
   // Convert SECRET_KEY to ArrayBuffer
@@ -135,10 +146,13 @@ export async function encrypt(data) {
  * @returns {Promise<Object>} - The decrypted session data
  */
 export async function decrypt(encryptedData) {
-  if (!SECRET_KEY || SECRET_KEY.length !== 64) {
-    throw new Error(
-      "Invalid SECRET_KEY. Ensure it is a 64-character hex string.",
-    );
+  if (!SECRET_KEY) {
+    await get_secret_key();
+    if (!SECRET_KEY || SECRET_KEY.length !== 64) {
+      throw new Error(
+        "Invalid SECRET_KEY. Ensure it is a 64-character hex string.",
+      );
+    }
   }
 
   // Convert SECRET_KEY to ArrayBuffer
