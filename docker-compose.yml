@@ -1,4 +1,4 @@
-name: jwt-djrest
+# name: jwt-djrest
 
 secrets:
   infisical_token:
