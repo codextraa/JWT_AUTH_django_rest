@@ -93,6 +93,10 @@ export default function LoginForm() {
         setIsRecaptchaVerified(false);
       }
     };
+
+    return () => {
+      document.body.removeChild(script);
+    };
   };
 
   const handleSubmit = async (formData) => {
