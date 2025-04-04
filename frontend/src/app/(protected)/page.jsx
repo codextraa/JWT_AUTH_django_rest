@@ -29,7 +29,7 @@ export default function Page() {
       <p className={styles.linkContainer}>
         For more details, visit the{" "}
         <a
-          href="https://github.com/wasee-sun/SESSION_AUTH_django_rest"
+          href="https://github.com/codextraa/JWT_AUTH_django_rest"
           className={styles.githubLink}
         >
           GitHub repository
