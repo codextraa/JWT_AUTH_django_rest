@@ -58,9 +58,6 @@ export default function RegisterForm() {
     script.src = "https://www.google.com/recaptcha/api.js";
     script.async = true;
     script.defer = true;
-    script.onload = () => {
-      console.log("reCAPTCHA script loaded successfully");
-    };
     script.onerror = () => {
       console.error("Failed to load reCAPTCHA script");
       setError("Failed to load reCAPTCHA. Please refresh the page.");

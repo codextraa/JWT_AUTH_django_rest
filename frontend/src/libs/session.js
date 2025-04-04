@@ -5,7 +5,6 @@ const get_secret_key = async () => {
   if (typeof window !== "undefined") {
     const response = await fetch("/api/auth-secret-key");
     const data = await response.json();
-    console.log("data", data);
     SECRET_KEY = data.auth_secret_key;
   } else {
     SECRET_KEY = process.env.AUTH_SECRET_KEY;
