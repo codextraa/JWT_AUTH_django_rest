@@ -39,6 +39,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     //   clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
     // }),
   ],
+  trustHost: process.env.NEXTAUTH_TRUSTED_HOST,
+  baseUrl: process.env.NEXTAUTH_URL,
   callbacks: {
     /* eslint-disable-next-line no-unused-vars */
     async signIn({ user, account, profile, email, credentials }) {
@@ -61,7 +63,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       if (result?.error) {
-        return "/auth/login?error=${result.error}";
+        return `/auth/login?error=${result.error}`;
       }
 
       return true;

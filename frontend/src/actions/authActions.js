@@ -157,7 +157,7 @@ export const logoutAction = async () => {
     await deleteCSRFCookie();
     // Delete the session cookie
     await deleteSessionCookie();
-    redirect("/login");
+    redirect("/auth/login");
   } catch (error) {
     // Throw the NEXT REDIRECT error (otherwise it won't work)
     throw error;

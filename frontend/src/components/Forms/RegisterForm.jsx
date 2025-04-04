@@ -11,8 +11,11 @@ import styles from "./RegisterForm.module.css";
 export default function RegisterForm() {
   const router = useRouter();
   const [userRole, setUserRole] = useState(null);
+  const [error, setError] = useState(null);
   const [errors, setErrors] = useState(null);
+  const [sitekey, setSitekey] = useState("");
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Dynamically load reCAPTCHA script
@@ -23,11 +26,43 @@ export default function RegisterForm() {
       }
     };
     fetchUserRole();
+  }, []);
 
+  useEffect(() => {
+    // Fetch sitekey first
+    const fetchSiteKey = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/recaptcha-key");
+        const data = await response.json();
+        if (data.sitekey) {
+          setSitekey(data.sitekey);
+          loadRecaptchaScript();
+        } else {
+          setError("Failed to load reCAPTCHA. Please refresh the page.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch reCAPTCHA sitekey:", error);
+        setError("Failed to load reCAPTCHA. Please refresh the page.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSiteKey();
+  }, [router.pathname]);
+
+  const loadRecaptchaScript = () => {
+    // Dynamically load reCAPTCHA script
     const script = document.createElement("script");
     script.src = "https://www.google.com/recaptcha/api.js";
     script.async = true;
     script.defer = true;
+    script.onerror = () => {
+      console.error("Failed to load reCAPTCHA script");
+      setError("Failed to load reCAPTCHA. Please refresh the page.");
+    };
+
     document.body.appendChild(script);
 
     window.handleRecaptchaCallback = (token) => {
@@ -41,10 +76,15 @@ export default function RegisterForm() {
     return () => {
       document.body.removeChild(script);
     };
-  }, []);
+  };
 
   const handleSubmit = async (formData) => {
     /* eslint-disable no-undef */
+    if (typeof grecaptcha === "undefined") {
+      setError("reCAPTCHA not loaded. Please refresh the page.");
+      return;
+    }
+
     const recaptchaResponse = grecaptcha.getResponse();
 
     if (!recaptchaResponse) {
@@ -84,6 +124,7 @@ export default function RegisterForm() {
 
   return (
     <form action={handleSubmit} className={styles.form}>
+      {error && <p className={styles.error}>{error}</p>}
       {errors && errors.error && <p className={styles.error}>{errors.error}</p>}
       <div className={styles.formGroup}>
         <label htmlFor="email" className={styles.label}>
@@ -187,11 +228,19 @@ export default function RegisterForm() {
       {errors && errors.c_password && (
         <p className={styles.error}>{errors.c_password}</p>
       )}
-      <div
-        className="g-recaptcha"
-        data-sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
-        data-callback="handleRecaptchaCallback"
-      ></div>
+      {isLoading ? (
+        <div>Loading reCAPTCHA...</div>
+      ) : sitekey ? (
+        <div
+          className="g-recaptcha"
+          data-sitekey={sitekey}
+          data-callback="handleRecaptchaCallback"
+        ></div>
+      ) : (
+        <div className={styles.error}>
+          Failed to load reCAPTCHA. Please refresh the page.
+        </div>
+      )}
       <RegisterButton disabled={!isRecaptchaVerified} />
       {userRole === "Superuser" ? (
         <Link href={`/admin-dashboard`} className={styles.link}>
