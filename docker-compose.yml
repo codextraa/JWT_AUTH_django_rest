@@ -39,8 +39,8 @@ services:
       - infisical_token
       - .infisical.json
     entrypoint: /app/run.sh
-    extra_hosts:
-      - "jwt-djrest.dev:host-gateway"
+    # extra_hosts:
+    #   - "jwt-djrest.dev:host-gateway"
     networks:
       - web-app-network
     cpus: '0.5'
