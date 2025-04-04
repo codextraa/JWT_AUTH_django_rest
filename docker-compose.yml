@@ -13,7 +13,7 @@ services:
     image: jwt-djrest-backend:Python-3.12-alpine-P
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     secrets:
       - infisical_token
       - .infisical.json
@@ -34,13 +34,13 @@ services:
     image: jwt-djrest-frontend:Node-20-alpine-P
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     secrets:
       - infisical_token
       - .infisical.json
     entrypoint: /app/run.sh
     extra_hosts:
-      - "jwt-djrest.dev.local:host-gateway"
+      - "jwt-djrest.dev:host-gateway"
     networks:
       - web-app-network
     cpus: '0.5'
@@ -54,7 +54,7 @@ services:
     volumes:
       - redis-data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
