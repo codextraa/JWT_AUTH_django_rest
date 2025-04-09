@@ -1176,6 +1176,7 @@ class PhoneVerifyView(APIView):
     """Phone Verification View."""
 
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     renderer_classes = [ViewRenderer]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "phone_otp"

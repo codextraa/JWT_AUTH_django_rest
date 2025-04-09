@@ -168,4 +168,4 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         """Return Email"""
-        return self.email
+        return f"{self.email}"
