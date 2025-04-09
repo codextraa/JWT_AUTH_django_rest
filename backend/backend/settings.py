@@ -379,12 +379,6 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "simple",
         },
-        "file": {
-            "level": "WARNING",
-            "class": "logging.FileHandler",
-            "filename": "debug.log",
-            "formatter": "verbose",
-        },
     },
     "loggers": {
         "": {  # Root logger
