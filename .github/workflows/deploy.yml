@@ -59,9 +59,6 @@ jobs:
               fi
             done
 
-            # # Build the Docker image
-            docker-compose -p jwt-djrest build
-
             # Run the app containers
             docker-compose -p jwt-djrest up -d
 
@@ -78,7 +75,7 @@ jobs:
 
             # Wait for jwt-djrest-frontend to be ready
             echo "Waiting for Frontend to be ready..."
-            timeout 60s bash -c "until curl -s -f http://localhost:3000/ > /dev/null; do echo 'Frontend not ready yet...'; sleep 5s; done" || { 
+            timeout 60s bash -c "until curl -s -f http://localhost:3001/ > /dev/null; do echo 'Frontend not ready yet...'; sleep 5s; done" || { 
               echo "Frontend failed to start"; 
               docker logs jwt-djrest-frontend; 
               docker stop jwt-djrest-frontend || true; 
@@ -89,7 +86,7 @@ jobs:
 
             # Wait for jwt-djrest-backend to be ready
             echo "Waiting for Backend to be ready..."
-            timeout 60s bash -c "until nc -z localhost 8000; do echo 'Backend not ready yet...'; sleep 5s; done" || { 
+            timeout 60s bash -c "until nc -z localhost 8001; do echo 'Backend not ready yet...'; sleep 5s; done" || { 
               echo "Backend failed to start"; 
               docker logs jwt-djrest-backend; 
               docker stop jwt-djrest-backend || true; 

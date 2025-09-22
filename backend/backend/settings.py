@@ -11,8 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -379,36 +379,30 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "simple",
         },
-        "file": {
-            "level": "WARNING",
-            "class": "logging.FileHandler",
-            "filename": "debug.log",
-            "formatter": "verbose",
-        },
     },
     "loggers": {
         "": {  # Root logger
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
         },
         "django": {  # Django-specific logger
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         "botocore": {  # botocore logger (for S3/AWS interactions)
             "level": "WARNING",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         "boto3": {  # boto3 logger
             "level": "WARNING",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
         "s3transfer": {  # s3transfer logger (used by boto3 for file transfers)
             "level": "WARNING",
-            "handlers": ["console", "file"],
+            "handlers": ["console"],
             "propagate": False,
         },
     },
