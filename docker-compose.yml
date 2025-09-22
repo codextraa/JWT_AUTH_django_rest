@@ -9,8 +9,9 @@ secrets:
 services:
   jwt-djrest-backend:
     container_name: jwt-djrest-backend
-    build: ./backend
-    image: jwt-djrest-backend:Python-3.12-alpine-P
+    # build: ./backend
+    # image: jwt-djrest-backend:Python-3.12-alpine-P
+    image: codxtra/jwt-djrest-backend:Python-3.12-alpine-P
     restart: unless-stopped
     ports:
       - "8001:8000"
@@ -30,8 +31,9 @@ services:
 
   jwt-djrest-frontend:
     container_name: jwt-djrest-frontend
-    build: ./frontend
-    image: jwt-djrest-frontend:Node-20-alpine-P
+    # build: ./frontend
+    # image: jwt-djrest-frontend:Node-20-alpine-P
+    image: codxtra/jwt-djrest-frontend:Node-20-alpine-P
     restart: unless-stopped
     ports:
       - "3001:3000"
@@ -47,9 +49,10 @@ services:
     mem_limit: 512m
 
   jwt-djrest-redis:
-    build: ./redis
     container_name: jwt-djrest-redis
-    image: jwt-djrest-redis:Redis-7.4.2-alpine-P
+    # build: ./redis
+    # image: jwt-djrest-redis:Redis-7.4.2-alpine-P
+    image: codxtra/jwt-djrest-redis:Redis-7.4.2-alpine-P
     restart: unless-stopped
     volumes:
       - redis-data:/data
