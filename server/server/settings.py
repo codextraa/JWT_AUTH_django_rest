@@ -51,7 +51,7 @@ else:
 APP_NAME = os.getenv("APP_NAME")
 
 INSTALLED_APPS = [
-    # "core_db",
+    "core_db",
     # "auth_api",
     "corsheaders",
     "rest_framework",
@@ -364,7 +364,7 @@ SESSION_COOKIE_SECURE = True  # Secure session cookies
 
 # User Settings
 
-# AUTH_USER_MODEL = "core_db.User"
+AUTH_USER_MODEL = "core_db.User"
 
 # Email Settings
 
