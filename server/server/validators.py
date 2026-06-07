@@ -1,5 +1,4 @@
 import re
-from decimal import Decimal
 from django.core.validators import RegexValidator
 
 validate_username_format = RegexValidator(
