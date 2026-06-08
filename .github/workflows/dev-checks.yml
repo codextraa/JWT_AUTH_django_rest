@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./client
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,14 +21,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: './frontend/package-lock.json'
+          cache-dependency-path: './client/package-lock.json'
 
       - name: Install dependencies
         run: npm ci
 
       - name: Check linting with ESLint
         run: |
-          npx eslint . --ext .js,.mjs,.jsx,.ts,.tsx
+          npx eslint . --max-warnings 0
 
       - name: Check code formatting with Prettier
         run: |
@@ -75,27 +75,24 @@ jobs:
           timeout 120s bash -c 'until [ "$(docker inspect --format="{{.State.Health.Status}}" postgres-db)" = "healthy" ]; do echo "Waiting for Postgres to be healthy..."; sleep 5; done' || { echo "Postgres failed to become healthy within 2 minutes"; exit 1; }
 
       - name: Start backend and Redis services
-        run: docker compose up -d --build jwt-djrest-backend jwt-djrest-redis
-
-      - name: Install linting dependencies
-        run: |
-          docker exec jwt-djrest-backend sh -c "pip install black==25.1.0 pylint==3.3.4 pylint-django"
-
-      - name: Run backend tests
-        run: |
-          docker exec jwt-djrest-backend sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && python manage.py test'"
-
-      - name: Show logs if tests fail
-        if: failure()
-        run: docker logs jwt-djrest-backend
+        working-directory: ./docker
+        run: docker compose up -d --build jwt-djrest-server jwt-djrest-redis
 
       - name: Check linting with Pylint
         run: |
-          docker exec jwt-djrest-backend sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && pylint backend auth_api core_db'"
+          docker exec jwt-djrest-server sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && pylint server auth_api core_db'"
 
       - name: Check code formatting with Black
         run: |
-          docker exec jwt-djrest-backend sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && black --check .'"
+          docker exec jwt-djrest-server sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && black --check .'"
+
+      - name: Run backend tests
+        run: |
+          docker exec jwt-djrest-server sh -c "export INFISICAL_TOKEN=\$(cat /run/secrets/infisical_token) && cd /run/secrets && infisical run --path='/JWT-django-rest/backend' -- sh -c 'cd /app && python manage.py test'"
+
+      - name: Show logs if tests fail
+        if: failure()
+        run: docker logs jwt-djrest-server
 
       - name: Stop JWT-djrest containers
         if: always()
