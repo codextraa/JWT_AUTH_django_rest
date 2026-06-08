@@ -1,0 +1,119 @@
+name: jwt-djrest
+
+secrets:
+  infisical_token:
+    file: ./infisical_token.txt
+  .infisical.json:
+    file: ./.infisical.json
+
+services:
+  jwt-djrest-backend:
+    container_name: jwt-djrest-backend
+    build: 
+      context: ..
+      dockerfile: ./docker/backend/Dockerfile
+    image: jwt-djrest-backend:Python-3.12-slim-D
+    ports:
+      - "8000:8000"
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: sh -c 
+    command: ["chmod +x /app/run.sh && /app/run.sh"]
+    volumes:
+      - ../backend:/app
+    depends_on:
+      jwt-djrest-redis:
+        condition: service_healthy
+    networks:
+      - web-app-network
+
+  jwt-djrest-server:
+    container_name: jwt-djrest-server
+    build: 
+      context: ..
+      dockerfile: ./docker/server/Dockerfile
+    image: jwt-djrest-server:Python-3.12-slim-D
+    ports:
+      - "8001:8000"
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: sh -c 
+    command: ["chmod +x /app/run.sh && /app/run.sh"]
+    volumes:
+      - ../server:/app
+    depends_on:
+      jwt-djrest-redis:
+        condition: service_healthy
+    networks:
+      - web-app-network
+
+  jwt-djrest-frontend:
+    container_name: jwt-djrest-frontend
+    build: 
+      context: ..
+      dockerfile: ./docker/frontend/Dockerfile
+    image: jwt-djrest-frontend:Node-22-alpine-D
+    ports:
+      - "3000:3000"
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: sh -c
+    command: ["chmod +x /app/run.sh && /app/run.sh"]
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules:/app/node_modules
+    extra_hosts:
+      - "jwt-djrest.dev:host-gateway"
+    networks:
+      - web-app-network
+
+  jwt-djrest-client:
+    container_name: jwt-djrest-client
+    build: 
+      context: ..
+      dockerfile: ./docker/client/Dockerfile
+    image: jwt-djrest-client:Node-22-alpine-D
+    ports:
+      - "3001:3000"
+    secrets:
+      - infisical_token
+      - .infisical.json
+    entrypoint: sh -c
+    command: ["chmod +x /app/run.sh && /app/run.sh"]
+    volumes:
+      - ../client:/app
+      - client_node_modules:/app/node_modules
+    extra_hosts:
+      - "jwt-djrest.dev:host-gateway"
+    networks:
+      - web-app-network
+
+  jwt-djrest-redis:
+    build: 
+      context: ..
+      dockerfile: ./docker/redis/Dockerfile
+    container_name: jwt-djrest-redis
+    image: jwt-djrest-redis:Redis-7.4.2-alpine-D
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - web-app-network
+
+volumes:
+  frontend_node_modules:
+  client_node_modules:
+  redis-data:
+
+networks:
+  web-app-network:
+    external: true
