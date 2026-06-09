@@ -26,9 +26,7 @@ export default function Page() {
       </p>
       <p>
         For more details, visit the{" "}
-        <a
-          href="https://github.com/codextraa/JWT_AUTH_django_rest"
-        >
+        <a href="https://github.com/codextraa/JWT_AUTH_django_rest">
           GitHub repository
         </a>
         .
