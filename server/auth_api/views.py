@@ -2,21 +2,21 @@ from datetime import datetime, timezone, timedelta
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from server.renderers import ViewRenderer
 from server.utils.recaptcha import verify_recaptcha_token
 from server.schema_serializers import (
-    CSRFTokenResponseSerializer,
-    RecaptchaRequestSerializer,
     SuccessResponseSerializer,
     ErrorResponseSerializer,
 )
-from .helpers import extract_recaptcha_data
+from .request_serializers import RecaptchaRequestSerializer
+from .response_serializers import CSRFTokenResponseSerializer
 
 
 class CSRFTokenView(APIView):
@@ -72,18 +72,23 @@ class CSRFTokenView(APIView):
         """Get Method for CSRF Token."""
         try:
             csrf_token = get_token(request)
-            # Substracting a minute so that frontend request doesn't give token expired error
             csrf_token_expiry = (
                 datetime.now(timezone.utc) + timedelta(days=1) - timedelta(minutes=1)
             )
-            return Response(
-                {
-                    "csrf_token": csrf_token,
-                    "csrf_token_expiry": csrf_token_expiry.isoformat(),
-                },
-                status=status.HTTP_200_OK,
-            )
+
+            raw_data = {
+                "csrf_token": csrf_token,
+                "csrf_token_expiry": csrf_token_expiry,
+            }
+
+            serializer = CSRFTokenResponseSerializer(data=raw_data)
+
+            serializer.is_valid(raise_exception=True)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
+            if isinstance(e, ValidationError):
+                raise e
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -131,31 +136,31 @@ class RecaptchaValidationView(APIView):
                 name="Action Missing",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": "Action is required."},
+                value={"errors": {"expected_action": ["Action is required."]}},
             ),
             OpenApiExample(
                 name="Missing reCAPTCHA Token",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": "Missing reCAPTCHA token."},
+                value={"errors": {"recaptcha_token": ["Missing reCAPTCHA token."]}},
             ),
             OpenApiExample(
                 name="Missing reCAPTCHA Version",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": "Missing reCAPTCHA version."},
+                value={"errors": {"recaptcha_version": ["Missing reCAPTCHA version."]}},
             ),
             OpenApiExample(
                 name="Missing User Agent",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": "Missing User Agent."},
+                value={"errors": {"user_agent": ["Missing User Agent Header."]}},
             ),
             OpenApiExample(
                 name="Missing User IP Address",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": "Missing User IP Address."},
+                value={"errors": {"user_ip": ["Missing User IP Address."]}},
             ),
             OpenApiExample(
                 name="Invalid reCAPTCHA Token",
@@ -188,25 +193,20 @@ class RecaptchaValidationView(APIView):
         """Post a request to validate reCAPTCHA.
         Returns a response with success or error message."""
         try:
-            expected_action = request.data.get("expected_action")
+            serializer = RecaptchaRequestSerializer(
+                data=request.data, context={"request": request}
+            )
 
-            if not expected_action:
-                return Response(
-                    {"error": "Action is required."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            serializer.is_valid(raise_exception=True)
 
-            extracted_data = extract_recaptcha_data(request)
-
-            if isinstance(extracted_data, Response):
-                return extracted_data
+            validated_data = serializer.validated_data
 
             is_human, message = verify_recaptcha_token(
-                token=extracted_data["recaptcha_token"],
-                expected_action=expected_action,
-                recaptcha_version=extracted_data["recaptcha_version"],
-                user_ip_address=extracted_data["user_ip"],
-                user_agent=extracted_data["user_agent"],
+                token=validated_data["recaptcha_token"],
+                expected_action=validated_data["expected_action"],
+                recaptcha_version=validated_data["recaptcha_version"],
+                user_ip_address=validated_data["user_ip"],
+                user_agent=validated_data["user_agent"],
             )
 
             if not is_human:
@@ -217,6 +217,8 @@ class RecaptchaValidationView(APIView):
 
             return Response({"success": message}, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
+            if isinstance(e, ValidationError):
+                raise e
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
