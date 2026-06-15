@@ -5,6 +5,9 @@ class CSRFTokenResponseSerializer(serializers.Serializer):  # pylint: disable=W0
     """Standard CSRF token structure."""
 
     csrf_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
         help_text="The CSRF token to be used in subsequent requests.",
         error_messages={
             "required": "CSRF token value generation failed.",
@@ -13,6 +16,8 @@ class CSRFTokenResponseSerializer(serializers.Serializer):  # pylint: disable=W0
         },
     )
     csrf_token_expiry = serializers.DateTimeField(
+        required=True,
+        allow_null=False,
         help_text="CSRF Token Expiry in ISO 8601 format",
         error_messages={
             "required": "CSRF expiration tracking context is required.",
