@@ -51,6 +51,7 @@ from .serializers import (
 )
 
 
+# ? in request serializer
 def check_token_validity(request):
     """Check if token is valid."""
     token = request.query_params.get("token")
@@ -77,6 +78,7 @@ def check_token_validity(request):
     return email
 
 
+# ? in request serializer
 def check_user_validity(email):
     """Check if user is valid using email."""
     user = get_user_model().objects.filter(email=email).first()
@@ -115,6 +117,7 @@ def check_user_validity(email):
     return user
 
 
+# ? in utils
 def get_user_role(user):
     """Get user role."""
     user_groups = user.groups.all()
@@ -131,6 +134,7 @@ def get_user_role(user):
     return user_role
 
 
+# ? in request serializer
 def check_user_id(user_id):
     """Check if user id is valid."""
     if not user_id:
@@ -157,6 +161,7 @@ def check_user_id(user_id):
     return check_user_validity(user.email)
 
 
+# ? in utils
 def create_otp(user_id, email, password):
     """Generate a 6 digit OTP and send it to the user's email."""
     otp = EmailOtp.generate_otp()
@@ -190,6 +195,7 @@ def create_otp(user_id, email, password):
     )
 
 
+# ? in throttles
 def check_throttle_duration(self, request):
     """
     Check duration for throttling
@@ -202,6 +208,7 @@ def check_throttle_duration(self, request):
     return throttle_durations
 
 
+# ? in throttles
 def start_throttle(self, throttle_durations, request):
     # Filter out `None` values which may happen in case of config / rate
     # changes, see #1438
