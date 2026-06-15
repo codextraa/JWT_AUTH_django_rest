@@ -1,7 +1,11 @@
 from rest_framework import serializers
 
 
-class RecaptchaRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
+class BaseRecaptchaSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Base serializer for handling reCAPTCHA tokens and request context validation.
+    """
+
     recaptcha_token = serializers.CharField(
         required=True,
         allow_null=False,
@@ -24,17 +28,6 @@ class RecaptchaRequestSerializer(serializers.Serializer):  # pylint: disable=W02
             "null": "Missing reCAPTCHA version.",
         },
     )
-    expected_action = serializers.CharField(
-        required=True,
-        allow_null=False,
-        allow_blank=False,
-        help_text="Client's action in the frontend to be used in subsequent requests.",
-        error_messages={
-            "required": "Action is required.",
-            "blank": "Action is required.",
-            "null": "Action is required.",
-        },
-    )
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -44,7 +37,6 @@ class RecaptchaRequestSerializer(serializers.Serializer):  # pylint: disable=W02
             )
 
         user_agent = request.META.get("HTTP_USER_AGENT", "")
-
         if not user_agent:
             raise serializers.ValidationError(
                 {"user_agent": "Missing User Agent Header."}
@@ -65,13 +57,49 @@ class RecaptchaRequestSerializer(serializers.Serializer):  # pylint: disable=W02
         return attrs
 
 
-# class LoginRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
-#     email_or_username = serializers.CharField(
-#         required=True,
-#         help_text="The email or username of the user to log in.",
-#     )
-#     password = serializers.CharField(
-#         required=True,
-#         write_only=True,
-#         help_text="The password of the user to log in.",
-#     )
+class RecaptchaRequestSerializer(BaseRecaptchaSerializer):
+    """
+    Extends the base reCAPTCHA serializer to include the expected_action field.
+    """
+
+    expected_action = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="Client's action in the frontend to be used in subsequent requests.",
+        error_messages={
+            "required": "Action is required.",
+            "blank": "Action is required.",
+            "null": "Action is required.",
+        },
+    )
+
+
+class LoginRequestSerializer(BaseRecaptchaSerializer):
+    """
+    Handles Login credentials AND inherits the base reCAPTCHA validations/fields.
+    """
+
+    email_or_username = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The email or username of the user to log in.",
+        error_messages={
+            "required": "Email or username is required.",
+            "blank": "Email or username is required.",
+            "null": "Email or username is required.",
+        },
+    )
+    password = serializers.CharField(
+        required=True,
+        write_only=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The password of the user to log in.",
+        error_messages={
+            "required": "Password is required.",
+            "blank": "Password is required.",
+            "null": "Password is required.",
+        },
+    )
