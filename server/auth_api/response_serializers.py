@@ -10,9 +10,9 @@ class CSRFTokenResponseSerializer(serializers.Serializer):  # pylint: disable=W0
         allow_blank=False,
         help_text="The CSRF token to be used in subsequent requests.",
         error_messages={
-            "required": "CSRF token value generation failed.",
-            "blank": "Generated CSRF token cannot be empty.",
-            "null": "Generated CSRF token cannot be null.",
+            "required": "CSRF token is required.",
+            "blank": "CSRF token is required.",
+            "null": "CSRF token is required.",
         },
     )
     csrf_token_expiry = serializers.DateTimeField(
@@ -20,42 +20,88 @@ class CSRFTokenResponseSerializer(serializers.Serializer):  # pylint: disable=W0
         allow_null=False,
         help_text="CSRF Token Expiry in ISO 8601 format",
         error_messages={
-            "required": "CSRF expiration tracking context is required.",
-            "invalid": "Invalid expiration timestamp format produced.",
-            "null": "Generated CSRF token cannot be null.",
+            "required": "CSRF expiration timestamp is required.",
+            "null": "CSRF expiration timestamp is required.",
+            "invalid": "CSRF expiration timestamp is invalid.",
         },
     )
 
 
-# class OTPSuccessResponse(serializers.Serializer):  # pylint: disable=W0223
-#     success = serializers.CharField(
-#         help_text="A descriptive message indicating the success of the operation."
-#     )
-#     otp = serializers.BooleanField(
-#         help_text="A boolean value indicating whether OTP is sent in email or not."
-#     )
-#     user_id = serializers.IntegerField(help_text="A unique identifier for the user.")
+class OTPResponseSerializer(serializers.Serializer):  # pylint: disable=W0223
+    success = serializers.BooleanField(
+        required=True,
+        allow_null=False,
+        help_text="A boolean value indicating the success of the operation.",
+        error_messages={
+            "required": "Success value is required.",
+            "null": "Success value is required.",
+            "invalid": "Success value is invalid.",
+        },
+    )
+    pre_auth_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The raw pre-auth token to be used in subsequent requests.",
+        error_messages={
+            "required": "Raw pre-auth token is required.",
+            "blank": "Raw pre-auth token is required.",
+            "null": "Raw pre-auth token is required.",
+        },
+    )
 
 
-# class TokenSuccessResponse(serializers.Serializer):  # pylint: disable=W0223
-#     access_token = serializers.CharField(
-#         help_text="The access token to be used in subsequent requests.",
-#     )
-#     refresh_token = serializers.CharField(
-#         help_text="The refresh token to be used in subsequent requests.",
-#     )
-#     access_token_expiry = serializers.DateTimeField(
-#         help_text="Access Token Expiry in ISO 8601 format",
-#     )
-#     user_id = serializers.IntegerField(
-#         help_text="A unique identifier for the user.",
-#     )
-#     user_role = serializers.CharField(
-#         help_text="The role of the user in the system.",
-#     )
-#     csrf_token = serializers.CharField(
-#         help_text="The CSRF token to be used in subsequent requests.",
-#     )
-#     csrf_token_expiry = serializers.DateTimeField(
-#         help_text="CSRF Token Expiry in ISO 8601 format.",
-#     )
+class TokenResponseSerializer(CSRFTokenResponseSerializer):  # pylint: disable=W0223
+    access_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The access token to be used in subsequent requests.",
+        error_messages={
+            "required": "Access token is required.",
+            "blank": "Access token is required.",
+            "null": "Access token is required.",
+        },
+    )
+    refresh_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The refresh token to be used in subsequent requests.",
+        error_messages={
+            "required": "Refresh token is required.",
+            "blank": "Refresh token is required.",
+            "null": "Refresh token is required.",
+        },
+    )
+    access_token_expiry = serializers.DateTimeField(
+        required=True,
+        allow_null=False,
+        help_text="Access Token Expiry in ISO 8601 format",
+        error_messages={
+            "required": "Access token expiry is required.",
+            "null": "Access token expiry is required.",
+            "invalid": "Access token expiry is invalid.",
+        },
+    )
+    user_id = serializers.IntegerField(
+        required=True,
+        allow_null=False,
+        help_text="A unique identifier for the user.",
+        error_messages={
+            "required": "User ID is required.",
+            "null": "User ID is required.",
+            "invalid": "User ID is invalid.",
+        },
+    )
+    user_role = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The role of the user in the system.",
+        error_messages={
+            "required": "User role is required.",
+            "blank": "User role is required.",
+            "null": "User role is required.",
+        },
+    )

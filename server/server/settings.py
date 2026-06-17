@@ -22,6 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "XXXXXX")
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 PRIVATE_KEY = os.getenv("private_key")
 PUBLIC_KEY = os.getenv("public_key")
 
@@ -217,6 +218,7 @@ AUTHENTICATION_BACKENDS = (
     # 'social_core.backends.twitter.TwitterOAuth',
     # 'social_core.backends.linkedin.LinkedinOAuth2',
     "social_core.backends.github.GithubOAuth2",
+    "server.backends.CustomAuthBackend",
     "django.contrib.auth.backends.ModelBackend",
 )
 
@@ -287,10 +289,10 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
-        "email_otp": "1/min",
-        "email_verify": "1/min",
-        "password_reset": "1/min",
-        "phone_otp": "1/min",
+        "email_otp": "15/min",
+        "email_verify": "15/min",
+        "password_reset": "15/min",
+        "phone_otp": "15/min",
     },
     "ORDERING_PARAM": "ordering",
 }
@@ -327,14 +329,25 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# Time to Live (TTL) in seconds
+
+ACCESS_TOKEN_TTL = 5 * 60 + 10  # 5 minutes and 10 seconds
+REFRESH_TOKEN_TTL = 24 * 60 * 60  # 1 day
+CSRF_TOKEN_TTL = 24 * 60 * 60 + 10  # 1 day and 10 seconds
+OTP_TTL = 10 * 60  # 10 minutes
+OTP_COOLDOWN_TTL = 60  # 1 minute
+LOGIN_FAILURE_ATTEMPT_TTL = 60 * 60  # 1 hour
+
 # Simple JWT Settings
 
 REST_USE_JWT = True
 
 SIMPLE_JWT = {
     # 10 second window for access_token_expiry setup
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5, seconds=10),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        seconds=ACCESS_TOKEN_TTL
+    ),  # 5 minutes and 10 seconds
+    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=REFRESH_TOKEN_TTL),  # 1 day
     # Set the RS256 algorithm
     "ALGORITHM": "RS256",
     # Set the private key for signing the token
@@ -364,7 +377,7 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:3000"
 CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
 CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
 CSRF_COOKIE_SAMESITE = "Lax"  # Prevent cross-origin requests
-CSRF_COOKIE_AGE = 60 * 60 * 24  # 1 day
+CSRF_COOKIE_AGE = CSRF_TOKEN_TTL  # 1 day and 10 seconds
 
 # Session Settings
 
