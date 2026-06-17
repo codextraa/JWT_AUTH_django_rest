@@ -36,7 +36,9 @@ class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
                 else:
                     failed_attempts = 1
                     cache.set(
-                        failed_attempts_key, failed_attempts, timeout=3600
+                        failed_attempts_key,
+                        failed_attempts,
+                        timeout=settings.LOGIN_FAILURE_ATTEMPT_TTL,
                     )  # 1 hour
 
                 # Lock account

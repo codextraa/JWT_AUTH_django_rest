@@ -1,5 +1,6 @@
 import string
 import secrets
+from django.conf import settings
 from django.core.cache import cache
 from server.utils.encryption import (
     generate_cache_key,
@@ -78,14 +79,18 @@ def create_otp(user_id):
             "otp": OTP,
         }
         raw_pre_auth_token, error = encrypt_and_set_cache_data(
-            raw_cache_obj, "pre_auth", 600
+            raw_cache_obj, "pre_auth", settings.OTP_TTL
         )
 
         if error:
             raise error
 
         user_lock_key = generate_cache_key(user_id)
-        cache.set(f"otp_cooldown:{user_id}:{user_lock_key}", True, timeout=60)
+        cache.set(
+            f"otp_cooldown:{user_id}:{user_lock_key}",
+            True,
+            timeout=settings.OTP_COOLDOWN_TTL,
+        )
 
         return {
             "success": True,

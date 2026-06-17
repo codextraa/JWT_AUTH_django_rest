@@ -441,7 +441,6 @@ class LoginViewDBTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # 6. Verify that TokenResponseSerializer contract payloads are populated properly
         expected_keys = [
             "refresh_token",
             "access_token",
