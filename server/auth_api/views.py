@@ -23,7 +23,7 @@ from server.renderers import ViewRenderer
 from server.utils.exception import ForbiddenValidationError
 from server.utils.recaptcha import verify_recaptcha_token
 from server.utils.encryption import generate_cache_key
-from server.server.utils.throttles import OTPCooldownThrottle
+from server.utils.throttles import OTPCooldownThrottle
 from server.schema_serializers import (
     SuccessResponseSerializer,
     ErrorResponseSerializer,
