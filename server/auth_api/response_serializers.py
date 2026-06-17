@@ -21,47 +21,37 @@ class CSRFTokenResponseSerializer(serializers.Serializer):  # pylint: disable=W0
         help_text="CSRF Token Expiry in ISO 8601 format",
         error_messages={
             "required": "CSRF expiration timestamp is required.",
-            "invalid": "CSRF expiration timestamp is invalid.",
             "null": "CSRF expiration timestamp is required.",
+            "invalid": "CSRF expiration timestamp is invalid.",
         },
     )
 
 
-class OTPSuccessResponse(serializers.Serializer):  # pylint: disable=W0223
-    success = serializers.CharField(
+class OTPResponseSerializer(serializers.Serializer):  # pylint: disable=W0223
+    success = serializers.BooleanField(
+        required=True,
+        allow_null=False,
+        help_text="A boolean value indicating the success of the operation.",
+        error_messages={
+            "required": "Success value is required.",
+            "null": "Success value is required.",
+            "invalid": "Success value is invalid.",
+        },
+    )
+    pre_auth_token = serializers.CharField(
         required=True,
         allow_null=False,
         allow_blank=False,
-        help_text="A descriptive message indicating the success of the operation.",
+        help_text="The raw pre-auth token to be used in subsequent requests.",
         error_messages={
-            "required": "Success message is required.",
-            "blank": "Success message is required.",
-            "null": "Success message is required.",
-        },
-    )
-    otp = serializers.BooleanField(
-        required=True,
-        allow_null=False,
-        help_text="A boolean value indicating whether OTP is sent in email or not.",
-        error_messages={
-            "required": "OTP status is required.",
-            "null": "OTP status is required.",
-            "invalid": "OTP status is invalid.",
-        },
-    )
-    user_id = serializers.IntegerField(
-        required=True,
-        allow_null=False,
-        help_text="A unique identifier for the user.",
-        error_messages={
-            "required": "User ID is required.",
-            "null": "User ID is required.",
-            "invalid": "User ID is invalid.",
+            "required": "Raw pre-auth token is required.",
+            "blank": "Raw pre-auth token is required.",
+            "null": "Raw pre-auth token is required.",
         },
     )
 
 
-class TokenSuccessResponse(CSRFTokenResponseSerializer):  # pylint: disable=W0223
+class TokenResponseSerializer(CSRFTokenResponseSerializer):  # pylint: disable=W0223
     access_token = serializers.CharField(
         required=True,
         allow_null=False,
@@ -90,8 +80,8 @@ class TokenSuccessResponse(CSRFTokenResponseSerializer):  # pylint: disable=W022
         help_text="Access Token Expiry in ISO 8601 format",
         error_messages={
             "required": "Access token expiry is required.",
-            "invalid": "Access token expiry is invalid.",
             "null": "Access token expiry is required.",
+            "invalid": "Access token expiry is invalid.",
         },
     )
     user_id = serializers.IntegerField(
