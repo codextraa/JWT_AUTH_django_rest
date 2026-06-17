@@ -75,6 +75,39 @@ class UserModelTests(TestCase):
                 password=password,
             )
 
+    def test_create_user_with_duplicate_email(self):
+        """Test Creating a user with duplicate email"""
+        email = "test@example.com"
+        password = "Django@123"
+
+        get_user_model().objects.create_user(
+            email=email,
+            password=password,
+        )
+
+        with self.assertRaises(ValidationError):
+            get_user_model().objects.create_user(
+                email=email,
+                password=password,
+            )
+
+    def test_create_user_with_different_cased_email(self):
+        """Test Creating a user with different cased email"""
+        email = "test@example.com"
+        password = "Django@123"
+
+        get_user_model().objects.create_user(
+            email=email,
+            password=password,
+        )
+
+        email = "Test@example.com"
+        with self.assertRaises(ValidationError):
+            get_user_model().objects.create_user(
+                email=email,
+                password=password,
+            )
+
     def test_creating_admin_user_with_email(self):
         """Test Creating an admin with an email is successful"""
         email = "staff@example.com"

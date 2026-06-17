@@ -24,7 +24,7 @@ class UserManager(BaseUserManager):
         except ValidationError as exc:
             raise ValidationError("Invalid Email Format") from exc
 
-        email = self.normalize_email(email)
+        email = self.normalize_email(email).lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -100,6 +100,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         validate_password(raw_password, user=self)
         super().set_password(raw_password)
+
+    def clean(self):
+        """Normalize email to lowercase before validation and saving"""
+        super().clean()
+        if self.email:
+            self.email = self.email.lower()
 
     def save(self, *args, **kwargs):
         """Running Validators before saving"""
