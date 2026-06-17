@@ -1,27 +1,35 @@
 from datetime import datetime, timezone, timedelta
+from django.conf import settings
 from django.middleware.csrf import get_token
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect
+from django.core.cache import cache
 from django.contrib.auth import get_user_model, authenticate
+from django.views.decorators.csrf import csrf_protect
+from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from rest_framework.exceptions import ValidationError
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.exceptions import ValidationError, Throttled
+from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from server.renderers import ViewRenderer
+from server.utils.exception import ForbiddenValidationError
 from server.utils.recaptcha import verify_recaptcha_token
+from server.utils.encryption import generate_cache_key
+from server.utils.throttle import OTPCooldownThrottle
 from server.schema_serializers import (
     SuccessResponseSerializer,
     ErrorResponseSerializer,
 )
+from .utils import get_user_role, create_otp
 from .validation_serializers import ValidUserSerializer
 from .request_serializers import RecaptchaRequestSerializer, LoginRequestSerializer
 from .response_serializers import (
     CSRFTokenResponseSerializer,
-    OTPSuccessResponse,
-    TokenSuccessResponse,
+    OTPResponseSerializer,
+    TokenResponseSerializer,
 )
 
 
@@ -79,7 +87,9 @@ class CSRFTokenView(APIView):
         try:
             csrf_token = get_token(request)
             csrf_token_expiry = (
-                datetime.now(timezone.utc) + timedelta(days=1) - timedelta(minutes=1)
+                datetime.now(timezone.utc)
+                + timedelta(seconds=settings.CSRF_TOKEN_TTL)
+                - timedelta(seconds=10)
             )
 
             raw_data = {
@@ -235,6 +245,22 @@ class LoginView(APIView):
 
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
+    throttle_classes = [OTPCooldownThrottle, ScopedRateThrottle]
+    throttle_scope = "email_otp"
+
+    def handle_exception(self, exc):
+        if isinstance(exc, Throttled):
+            return Response(
+                {
+                    "error": (
+                        f"Please wait {exc.wait} seconds before"
+                        " requesting another OTP."
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        return super().handle_exception(exc)
 
     @extend_schema(
         summary="Login to get an OTP",
@@ -243,75 +269,6 @@ class LoginView(APIView):
             "If valid, an OTP is sent to the registered email."
         ),
         request=LoginRequestSerializer,
-        responses={
-            200: OpenApiResponse(
-                description="OTP sent successfully",
-                response={
-                    "type": "object",
-                    "properties": {
-                        "success": {"type": "string", "example": "Email sent"},
-                        "otp": {"type": "boolean", "example": True},
-                        "user_id": {"type": "integer", "example": 1},
-                    },
-                },
-            ),
-            400: OpenApiResponse(
-                description="Bad Request - Various authentication errors",
-                response={
-                    "type": "object",
-                    "properties": {
-                        "errors": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "example": [
-                                "Invalid credentials",
-                                (
-                                    "Invalid credentials. You have X more attempt(s) "
-                                    "before your account is deactivated."
-                                ),
-                                (
-                                    "Invalid credentials. Your account is deactivated."
-                                    " Verify your email."
-                                ),
-                                (
-                                    "Invalid credentials. Your account is deactivated."
-                                    " Contact an admin."
-                                ),
-                                "Email and password are required",
-                                (
-                                    "This process cannot be used, "
-                                    "as user is created using {auth_provider}"
-                                ),
-                                "Email is not verified. You must verify your email first",
-                                "Account is deactivated. Contact your admin",
-                                "Something went wrong, could not send OTP. Try again",
-                            ],
-                        }
-                    },
-                },
-            ),
-            429: OpenApiResponse(
-                description="Too Many Requests - Rate limit exceeded",
-                response={
-                    "type": "object",
-                    "properties": {
-                        "errors": {
-                            "type": "string",
-                            "example": "Request was throttled. Expected available in n seconds.",
-                        }
-                    },
-                },
-            ),
-            500: OpenApiResponse(
-                description="Internal Server Error",
-                response={
-                    "type": "object",
-                    "properties": {
-                        "errors": {"type": "string", "example": "Internal Server Error"}
-                    },
-                },
-            ),
-        },
     )
     @method_decorator(csrf_protect)
     def post(self, request, *args, **kwargs):  # pylint: disable=R0911
@@ -345,98 +302,69 @@ class LoginView(APIView):
                 password=req_validated_data["password"],
             )
 
-            valid_serializer = ValidUserSerializer(data={}, context={"user": user})
+            valid_serializer = ValidUserSerializer(
+                data={}, context={"user": user, "request": request}
+            )
 
             valid_serializer.is_valid(raise_exception=True)
 
             validated_user = valid_serializer.validated_data["user"]
 
             if validated_user.is_two_fa:
-                pass
+                otp_success = create_otp(user.id, req_validated_data["user_ip"])
+                if not otp_success.get("success"):
+                    return Response(
+                        {
+                            "error": "Something went wrong, could not send OTP. Try again"
+                        },
+                        status=status.HTTP_424_FAILED_DEPENDENCY,
+                    )
+
+                otp_res_serializer = OTPResponseSerializer(data=otp_success)
+
+                otp_res_serializer.is_valid(raise_exception=True)
+
+                hashed_user_key = generate_cache_key(validated_user.id)
+                cache.delete(f"login_failures:{hashed_user_key}")
+
+                return Response(otp_res_serializer.data, status=status.HTTP_200_OK)
             else:
-                pass
+                refresh = RefreshToken.for_user(validated_user)
+                access_token_expiry = (
+                    datetime.now(timezone.utc)
+                    + timedelta(seconds=settings.ACCESS_TOKEN_TTL)
+                    - timedelta(seconds=10)
+                ).isoformat()
 
-            # email = request.data.get("email")
-            # password = request.data.get("password")
+                csrf_token = get_token(request)
+                csrf_token_expiry = (
+                    datetime.now(timezone.utc)
+                    + timedelta(seconds=settings.CSRF_TOKEN_TTL)
+                    - timedelta(seconds=10)
+                )
 
-            # if not email or not password:
-            #     return Response(
-            #         {"error": "Email and password are required"},
-            #         status=status.HTTP_400_BAD_REQUEST,
-            #     )
+                raw_data = {
+                    "refresh_token": str(refresh),
+                    "access_token": str(refresh.access_token),
+                    "access_token_expiry": access_token_expiry,
+                    "user_id": validated_user.id,
+                    "user_role": get_user_role(validated_user),
+                    "csrf_token": csrf_token,
+                    "csrf_token_expiry": csrf_token_expiry,
+                }
 
-            # user = check_user_validity(email)
+                token_res_serializer = TokenResponseSerializer(data=raw_data)
 
-            # if isinstance(user, Response):
-            #     return user
+                token_res_serializer.is_valid(raise_exception=True)
 
-            # # Check if password is correct
-            # if not user.check_password(password):
-            #     # Increment failed login attempts
-            #     if now() - user.last_failed_login_time <= timedelta(minutes=10):
-            #         user.failed_login_attempts += 1
-            #     else:
-            #         user.failed_login_attempts = 1
+                hashed_user_key = generate_cache_key(validated_user.id)
+                cache.delete(f"login_failures:{hashed_user_key}")
 
-            #     user.last_failed_login_time = now()
-            #     user.save()
-
-            #     if user.failed_login_attempts == settings.MAX_LOGIN_FAILURE_LIMIT:
-            #         # Lock account
-            #         if user.is_superuser:
-            #             user.is_email_verified = False
-            #             user.save()
-            #             return Response(
-            #                 {
-            #                     "error": (
-            #                         "Invalid credentials. Your account is deactivated. "
-            #                         "Verify your email."
-            #                     )
-            #                 },
-            #                 status=status.HTTP_400_BAD_REQUEST,
-            #             )
-            #         user.is_active = False
-            #         user.save()
-            #         return Response(
-            #             {
-            #                 "error": (
-            #                     "Invalid credentials. Your account is deactivated. "
-            #                     "Contact an admin."
-            #                 )
-            #             },
-            #             status=status.HTTP_400_BAD_REQUEST,
-            #         )
-
-            #     if user.failed_login_attempts >= 3:
-            #         remaining_attempts = (
-            #             settings.MAX_LOGIN_FAILURE_LIMIT - user.failed_login_attempts
-            #         )
-            #         return Response(
-            #             {
-            #                 "error": (
-            #                     f"Invalid credentials. You have {remaining_attempts} "
-            #                     "more attempt(s) before your account is deactivated."
-            #                 )
-            #             },
-            #             status=status.HTTP_400_BAD_REQUEST,
-            #         )
-
-            #     return Response(
-            #         {"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST
-            #     )
-
-            # # Reset failed login attempts
-            # if user.failed_login_attempts > 0:
-            #     user.failed_login_attempts = 0
-            #     user.save()
-
-            # # Generate OTP
-            # response = create_otp(user.id, email, password)
-
-            # return response
-
+                return Response(token_res_serializer.data, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
-            if isinstance(e, ValidationError):
+            if isinstance(e, ValidationError) or isinstance(
+                e, ForbiddenValidationError
+            ):
                 raise e
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
