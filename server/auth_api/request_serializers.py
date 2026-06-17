@@ -2,7 +2,7 @@ from rest_framework import serializers
 from server.schema_serializers import BaseRecaptchaSerializer
 
 
-class RecaptchaRequestSerializer(BaseRecaptchaSerializer):
+class RecaptchaRequestSerializer(BaseRecaptchaSerializer):  # pylint: disable=W0223
     """
     Extends the base reCAPTCHA serializer to include the expected_action field.
     """
@@ -20,7 +20,7 @@ class RecaptchaRequestSerializer(BaseRecaptchaSerializer):
     )
 
 
-class LoginRequestSerializer(BaseRecaptchaSerializer):
+class LoginRequestSerializer(BaseRecaptchaSerializer):  # pylint: disable=W0223
     """
     Handles Login credentials AND inherits the base reCAPTCHA validations/fields.
     """

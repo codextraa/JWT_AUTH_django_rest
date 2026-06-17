@@ -58,7 +58,7 @@ def get_user_role(user):
     return user_role
 
 
-def create_otp(user_id, user_ip):
+def create_otp(user_id):
     """
     Generates an OTP and send it to the user's email.
     Encrypts the minimal cache payload (user_id & otp) using a custom key.

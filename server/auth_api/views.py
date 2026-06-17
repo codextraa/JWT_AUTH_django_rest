@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from django.conf import settings
 from django.middleware.csrf import get_token
 from django.core.cache import cache
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from rest_framework import status
@@ -384,7 +384,10 @@ class LoginView(APIView):
                 response_only=True,
                 status_codes=["400"],
                 value={
-                    "error": "Invalid credentials. You have 2 more attempt(s) before your account is deactivated."
+                    "error": (
+                        "Invalid credentials. You have 2 more "
+                        "attempt(s) before your account is deactivated."
+                    )
                 },
             ),
             OpenApiExample(
@@ -392,7 +395,10 @@ class LoginView(APIView):
                 response_only=True,
                 status_codes=["400"],
                 value={
-                    "error": "Invalid credentials. Your account has been deactivated. Contact an admin."
+                    "error": (
+                        "Invalid credentials. Your account has "
+                        "been deactivated. Contact an admin."
+                    )
                 },
             ),
             OpenApiExample(
@@ -458,7 +464,7 @@ class LoginView(APIView):
         ],
     )
     @method_decorator(csrf_protect)
-    def post(self, request, *args, **kwargs):  # pylint: disable=R0911
+    def post(self, request, *args, **kwargs):  # pylint: disable=R0911, R0914
         """Post a request to login. Returns an OTP or JWTTokens to the registered email."""
         try:
             req_serializer = LoginRequestSerializer(
@@ -498,7 +504,7 @@ class LoginView(APIView):
             validated_user = valid_serializer.validated_data["user"]
 
             if validated_user.is_two_fa:
-                otp_success = create_otp(user.id, req_validated_data["user_ip"])
+                otp_success = create_otp(user.id)
                 if not otp_success.get("success"):
                     return Response(
                         {
@@ -515,43 +521,41 @@ class LoginView(APIView):
                 cache.delete(f"login_failures:{hashed_user_key}")
 
                 return Response(otp_res_serializer.data, status=status.HTTP_200_OK)
-            else:
-                refresh = RefreshToken.for_user(validated_user)
-                access_token_expiry = (
-                    datetime.now(timezone.utc)
-                    + timedelta(seconds=settings.ACCESS_TOKEN_TTL)
-                    - timedelta(seconds=10)
-                ).isoformat()
 
-                csrf_token = get_token(request)
-                csrf_token_expiry = (
-                    datetime.now(timezone.utc)
-                    + timedelta(seconds=settings.CSRF_TOKEN_TTL)
-                    - timedelta(seconds=10)
-                )
+            refresh = RefreshToken.for_user(validated_user)
+            access_token_expiry = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=settings.ACCESS_TOKEN_TTL)
+                - timedelta(seconds=10)
+            ).isoformat()
 
-                raw_data = {
-                    "refresh_token": str(refresh),
-                    "access_token": str(refresh.access_token),
-                    "access_token_expiry": access_token_expiry,
-                    "user_id": validated_user.id,
-                    "user_role": get_user_role(validated_user),
-                    "csrf_token": csrf_token,
-                    "csrf_token_expiry": csrf_token_expiry,
-                }
+            csrf_token = get_token(request)
+            csrf_token_expiry = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=settings.CSRF_TOKEN_TTL)
+                - timedelta(seconds=10)
+            )
 
-                token_res_serializer = TokenResponseSerializer(data=raw_data)
+            raw_data = {
+                "refresh_token": str(refresh),
+                "access_token": str(refresh.access_token),
+                "access_token_expiry": access_token_expiry,
+                "user_id": validated_user.id,
+                "user_role": get_user_role(validated_user),
+                "csrf_token": csrf_token,
+                "csrf_token_expiry": csrf_token_expiry,
+            }
 
-                token_res_serializer.is_valid(raise_exception=True)
+            token_res_serializer = TokenResponseSerializer(data=raw_data)
 
-                hashed_user_key = generate_cache_key(validated_user.id)
-                cache.delete(f"login_failures:{hashed_user_key}")
+            token_res_serializer.is_valid(raise_exception=True)
 
-                return Response(token_res_serializer.data, status=status.HTTP_200_OK)
+            hashed_user_key = generate_cache_key(validated_user.id)
+            cache.delete(f"login_failures:{hashed_user_key}")
+
+            return Response(token_res_serializer.data, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
-            if isinstance(e, ValidationError) or isinstance(
-                e, ForbiddenValidationError
-            ):
+            if isinstance(e, (ValidationError, ForbiddenValidationError)):
                 raise e
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
