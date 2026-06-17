@@ -78,7 +78,7 @@ def check_token_validity(request):
     return email
 
 
-# ? in request serializer
+# ? in validation serializer
 def check_user_validity(email):
     """Check if user is valid using email."""
     user = get_user_model().objects.filter(email=email).first()
