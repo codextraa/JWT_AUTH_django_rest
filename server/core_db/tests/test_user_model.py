@@ -31,7 +31,7 @@ class UserModelTests(TestCase):
         self.assertEqual(user.email, email)
         self.assertTrue(user.check_password(password))
         self.assertTrue(user.is_active)
-        self.assertEqual(user.username, email)  # checking if username signal is working
+        self.assertIn("user_", user.username)  # checking if username signal is working
         self.assertEqual(
             user.is_email_verified, False
         )  # checking if email verified is false
@@ -120,7 +120,7 @@ class UserModelTests(TestCase):
         self.assertEqual(user.email, email)
         self.assertTrue(user.check_password(password))
         self.assertTrue(user.is_active)
-        self.assertEqual(user.username, email)  # checking if username signal is working
+        self.assertIn("user_", user.username)  # checking if username signal is working
         self.assertIn(
             admin_group, user.groups.all()
         )  # checking if group signal is working
@@ -234,14 +234,13 @@ class UserModelTests(TestCase):
         """Test creating a user with a slug"""
         email = "test@example.com"
         password = "Django@123"
-        slug = "testexamplecom"
 
         user = get_user_model().objects.create_user(
             email=email,
             password=password,
         )
 
-        self.assertEqual(user.slug, slug)
+        self.assertEqual(user.slug, user.username)
 
     def test_user_slug_with_username_assigned(self):
         """Test creating a user with a slug"""

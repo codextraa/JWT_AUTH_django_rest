@@ -1,6 +1,6 @@
 import React from "react";
 
-// ─── Session & CSRF Data ──────────────────────────────────────
+// ─── Session, Pre-Auth & CSRF Data ──────────────────────────────────────
 export interface SessionData {
   user_id: string;
   user_role: string;
@@ -9,12 +9,20 @@ export interface SessionData {
   access_token_expiry: string;
 }
 
+export interface PreAuthData {
+  pre_auth_token: string;
+}
+
 export interface CSRFTokenData {
   csrf_token: string;
   csrf_token_expiry: string;
 }
 
 // ─── API Response Types ───────────────────────────────────────
+export interface SuccessResponse {
+  success: string | undefined;
+}
+
 export interface ErrorResponse {
   error: string | undefined;
 }
@@ -36,7 +44,15 @@ export interface SessionResponseSuccess {
   csrf_token_expiry: string | undefined;
 }
 
-export type SessionResponse = SessionResponseSuccess | ErrorResponse;
+export interface PreAuthResponseSuccess {
+  success: string | undefined;
+  pre_auth_token: string | undefined;
+}
+
+export type SessionResponse =
+  | SessionResponseSuccess
+  | PreAuthResponseSuccess
+  | ErrorResponse;
 
 // ─── Auth Request Types ───────────────────────────────────────
 export interface LoginRequest {

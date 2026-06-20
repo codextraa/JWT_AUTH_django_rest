@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 import {
   loginUser,
@@ -12,7 +12,7 @@ import {
   // verifyResetLink,
   // resetPassword,
   // createUser,
-} from '@/libs/api';
+} from "@/libs/api";
 // import {
 //   setSessionCookie,
 //   deleteSessionCookie,
@@ -29,15 +29,15 @@ import type {
   // PasswordResetConfirm,
   // UserCreateRequest,
   // SessionResponseSuccess,
-} from '@/types/types';
+} from "@/types/types";
 
 export async function loginAction(
-  data: LoginRequest
+  data: LoginRequest,
 ): Promise<{ success: true; user_id: number } | { error: string }> {
   const result = await loginUser(data);
-  if ('error' in result && result.error) return { error: result.error };
-  if ('user_id' in result) return { success: true, user_id: result.user_id };
-  return { error: 'Login failed' };
+  if ("error" in result && result.error) return { error: result.error };
+  if ("user_id" in result) return { success: true, user_id: result.user_id };
+  return { error: "Login failed" };
 }
 
 // export async function verifyOTPAction(

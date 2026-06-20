@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Button from "@/components/buttons/Buttons";
 // import { logoutAction } from "@/actions/authActions";
-import { NavbarProps } from "@/types/types"; 
+import { NavbarProps } from "@/types/types";
 
 //! navbar admin superuser review below
 export default function Navbar({ isLoggedIn }: NavbarProps) {
@@ -42,14 +42,10 @@ export default function Navbar({ isLoggedIn }: NavbarProps) {
               href="/"
               className="text-black text-sm font-medium hover:opacity-70 transition-opacity"
             >
-              Dashboard 
+              Dashboard
             </Link>
             {/* Admin and superuser can only access dashboard */}
-            <Button
-              variant="primary"
-              onClick={handleLogout}
-              disabled={loading}
-            >
+            <Button variant="primary" onClick={handleLogout} disabled={loading}>
               {loading ? "Logging out..." : "Log Out"}
             </Button>
           </>
