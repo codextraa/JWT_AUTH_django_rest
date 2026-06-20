@@ -20,7 +20,6 @@ import {
   ErrorResponse,
 } from "@/types/types";
 
-
 const HTTPS = process.env.HTTPS === "true";
 const API_URL_OLD = HTTPS
   ? process.env.API_BASE_HTTPS_OLD_URL
@@ -41,7 +40,6 @@ export const refreshToken = async (data: {
 }): Promise<SessionResponse> => {
   return await apiClientOld.post("/token/refresh/", data);
 };
-
 
 export const loginUser = async (
   data: LoginRequest,
