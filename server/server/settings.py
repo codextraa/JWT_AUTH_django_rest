@@ -210,6 +210,7 @@ CACHES = {
 }
 
 # Authentication backends
+# If one fails the next one runs, therefore don't use ModelBackend in case of CustomAuthBackend
 
 AUTHENTICATION_BACKENDS = (
     "social_core.backends.google.GoogleOAuth2",
@@ -219,7 +220,7 @@ AUTHENTICATION_BACKENDS = (
     # 'social_core.backends.linkedin.LinkedinOAuth2',
     "social_core.backends.github.GithubOAuth2",
     "server.backends.CustomAuthBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    # "django.contrib.auth.backends.ModelBackend",
 )
 
 # Pipelines
