@@ -9,7 +9,6 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import ValidationError, Throttled
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import (
@@ -250,8 +249,7 @@ class LoginView(APIView):
 
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
-    throttle_classes = [OTPCooldownThrottle, ScopedRateThrottle]
-    throttle_scope = "email_otp"
+    throttle_classes = [OTPCooldownThrottle]
 
     def handle_exception(self, exc):
         if isinstance(exc, Throttled):
@@ -524,6 +522,9 @@ class LoginView(APIView):
 
             validated_user = valid_serializer.validated_data["user"]
 
+            hashed_user_key = generate_cache_key(validated_user.id)
+            cache.delete(f"login_failures:{hashed_user_key}")
+
             if validated_user.is_two_fa:
                 otp_success = create_otp(user.id)
                 if not otp_success.get("success"):
@@ -537,9 +538,6 @@ class LoginView(APIView):
                 otp_res_serializer = OTPResponseSerializer(data=otp_success)
 
                 otp_res_serializer.is_valid(raise_exception=True)
-
-                hashed_user_key = generate_cache_key(validated_user.id)
-                cache.delete(f"login_failures:{hashed_user_key}")
 
                 return Response(otp_res_serializer.data, status=status.HTTP_200_OK)
 
@@ -570,9 +568,6 @@ class LoginView(APIView):
             token_res_serializer = TokenResponseSerializer(data=raw_data)
 
             token_res_serializer.is_valid(raise_exception=True)
-
-            hashed_user_key = generate_cache_key(validated_user.id)
-            cache.delete(f"login_failures:{hashed_user_key}")
 
             return Response(token_res_serializer.data, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
