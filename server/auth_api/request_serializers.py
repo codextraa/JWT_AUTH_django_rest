@@ -55,6 +55,7 @@ class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
     Handles 2FA credentials.
     """
 
+    # pylint: disable=R0801
     pre_auth_token = serializers.CharField(
         required=True,
         allow_null=False,
@@ -66,6 +67,7 @@ class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
             "null": "Token is required.",
         },
     )
+    # pylint: enable=R0801
 
     otp = serializers.IntegerField(
         required=True,
