@@ -108,6 +108,10 @@ class RefreshTokenRequestSerializer(serializers.Serializer):  # pylint: disable=
         try:
             token_instance = RefreshToken(value)
         except (TokenError, InvalidToken) as exc:
+            # If LogoutView is calling this method skip token validation
+            if self.context.get("is_logout", False):
+                return None
+
             raise UnauthorizedValidationError(
                 {"error": "Token is invalid or expired"}
             ) from exc

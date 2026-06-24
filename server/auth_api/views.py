@@ -154,6 +154,15 @@ class RecaptchaValidationView(APIView):
         },
         examples=[
             OpenApiExample(
+                name="reCAPTCHA Request Example",
+                request_only=True,
+                value={
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
+                    "expected_action": "login",
+                },
+            ),
+            OpenApiExample(
                 name="Sucess",
                 response_only=True,
                 status_codes=["200"],
@@ -321,23 +330,32 @@ class LoginView(APIView):
         examples=[
             OpenApiExample(
                 name="Superuser Login Request Example",
+                request_only=True,
                 value={
                     "email": "superuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
                 name="Staff Login Request Example",
+                request_only=True,
                 value={
                     "email": "staffuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
                 name="Default User Login Request Example",
+                request_only=True,
                 value={
                     "email": "defaultuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
@@ -644,6 +662,7 @@ class TwoFAView(APIView):
         examples=[
             OpenApiExample(
                 name="2FA Request Example",
+                request_only=True,
                 value={
                     "pre-auth-token": "kdslfjs0f9ujse8fhse8fs-PRE-AUTH-TOKEN",
                     "otp": "000000",
@@ -774,7 +793,7 @@ class TwoFAView(APIView):
 
 
 class RefreshTokenView(APIView):
-    """Generates JWT access token using the refresh token."""
+    """Refresh JWT Tokens using a Refresh Token."""
 
     permission_classes = [AllowAny]
     renderer_classes = [ViewRenderer]
@@ -812,6 +831,7 @@ class RefreshTokenView(APIView):
         examples=[
             OpenApiExample(
                 name="Refresh Token Request Example",
+                request_only=True,
                 value={
                     "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-OLD-REFRESH-TOKEN",
                 },
@@ -861,6 +881,12 @@ class RefreshTokenView(APIView):
                 value={
                     "error": "Email is not verified. You must verify your email first"
                 },
+            ),
+            OpenApiExample(
+                name="Internal Server Error",
+                response_only=True,
+                status_codes=["500"],
+                value={"error": "Internal Server Error"},
             ),
         ],
     )
@@ -925,6 +951,86 @@ class RefreshTokenView(APIView):
                     ForbiddenValidationError,
                 ),
             ):
+                raise e
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LogoutView(APIView):
+    """Logout by blacklisting the refresh token."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+
+    @extend_schema(
+        summary="Logout",
+        description="Logout by blacklisting the refresh token.",
+        request=RefreshTokenRequestSerializer,
+        tags=["Authentication"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response=SuccessResponseSerializer,
+                description="Logout successful",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Bad Request - Invalid request parameters",
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Internal Server Error.",
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                name="Logout Request Example",
+                request_only=True,
+                value={
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-OLD-REFRESH-TOKEN",
+                },
+            ),
+            OpenApiExample(
+                name="Sucess",
+                response_only=True,
+                status_codes=["200"],
+                value={
+                    "success": "Logged out successfully",
+                },
+            ),
+            OpenApiExample(
+                name="Missing Refresh Token",
+                response_only=True,
+                status_codes=["400"],
+                value={"errors": {"refresh_token": ["Token is required."]}},
+            ),
+            OpenApiExample(
+                name="Internal Server Error",
+                response_only=True,
+                status_codes=["500"],
+                value={"error": "Internal Server Error"},
+            ),
+        ],
+    )
+    @method_decorator(csrf_protect)
+    def post(self, request, *args, **kwargs):
+        try:
+            req_serializer = RefreshTokenRequestSerializer(
+                data=request.data, context={"is_logout": True}
+            )
+
+            req_serializer.is_valid(raise_exception=True)
+
+            refresh_token = req_serializer.validated_data["refresh_token"]
+
+            if refresh_token:
+                refresh_token.blacklist()
+
+            return Response(
+                {"success": "Logged out successfully"}, status=status.HTTP_200_OK
+            )
+        except Exception as e:  # pylint: disable=W0718
+            if isinstance(e, ValidationError):
                 raise e
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
