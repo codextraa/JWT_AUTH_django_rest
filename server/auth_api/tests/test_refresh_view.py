@@ -116,9 +116,8 @@ class RefreshViewDBTests(APITestCase):
 
         self.user = User.objects.create_user(
             email="defaultuser@example.com",
-            username="defaultuser",
             password="SecurePassword123!",
-            auth_provider="email",
+            auth_provider="google",
             is_email_verified=True,
             is_active=True,
         )
@@ -134,7 +133,7 @@ class RefreshViewDBTests(APITestCase):
         cache.clear()
 
     # ==========================================
-    # SUCCESS TESTS (200)
+    # SUCCESS TEST (200)
     # ==========================================
 
     def test_refresh_token_success(self):
