@@ -1,3 +1,5 @@
+"""Views for Auth API."""  # pylint: disable=C0302
+
 from datetime import datetime, timezone, timedelta
 from django.conf import settings
 from django.middleware.csrf import get_token
