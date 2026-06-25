@@ -1,5 +1,8 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from server.schema_serializers import BaseRecaptchaSerializer
+from server.utils.exception import UnauthorizedValidationError
 
 
 class RecaptchaRequestSerializer(BaseRecaptchaSerializer):  # pylint: disable=W0223
@@ -79,3 +82,38 @@ class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
             "invalid": "OTP is invalid.",
         },
     )
+
+
+class RefreshTokenRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Handles refresh token validation and payload initialization.
+    """
+
+    refresh_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The valid refresh token received during login or previous refresh.",
+        error_messages={
+            "required": "Token is required.",
+            "blank": "Token is required.",
+            "null": "Token is required.",
+        },
+    )
+
+    def validate_refresh_token(self, value):
+        """
+        Validates the cryptographic signature and lifecycle status of the refresh token.
+        """
+        try:
+            token_instance = RefreshToken(value)
+        except (TokenError, InvalidToken) as exc:
+            # If LogoutView is calling this method skip token validation
+            if self.context.get("is_logout", False):
+                return None
+
+            raise UnauthorizedValidationError(
+                {"error": "Token is invalid or expired"}
+            ) from exc
+
+        return token_instance

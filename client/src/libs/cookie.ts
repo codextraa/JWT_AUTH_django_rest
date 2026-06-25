@@ -156,7 +156,7 @@ export const updateSessionCookie = async (
   }
 
   const data = {
-    refresh: refreshTokenFromCookie,
+    refresh_token: refreshTokenFromCookie,
   };
 
   const refreshTokenResponse: SessionResponse = await refreshToken(data);

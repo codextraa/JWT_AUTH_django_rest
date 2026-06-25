@@ -8,6 +8,12 @@ class BadRequestValidationError(APIException):
     default_code = "bad_request"
 
 
+class UnauthorizedValidationError(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    default_detail = "Unauthorized."
+    default_code = "unauthorized"
+
+
 class ForbiddenValidationError(APIException):
     status_code = status.HTTP_403_FORBIDDEN
     default_detail = "Permission denied."

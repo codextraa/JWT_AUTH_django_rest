@@ -1,3 +1,5 @@
+"""Views for Auth API."""  # pylint: disable=C0302
+
 from datetime import datetime, timezone, timedelta
 from django.conf import settings
 from django.middleware.csrf import get_token
@@ -19,7 +21,11 @@ from drf_spectacular.utils import (
 )
 
 from server.renderers import ViewRenderer
-from server.utils.exception import BadRequestValidationError, ForbiddenValidationError
+from server.utils.exception import (
+    BadRequestValidationError,
+    UnauthorizedValidationError,
+    ForbiddenValidationError,
+)
 from server.utils.recaptcha import verify_recaptcha_token
 from server.utils.encryption import generate_cache_key
 from server.schema_serializers import (
@@ -28,11 +34,12 @@ from server.schema_serializers import (
 )
 from server.utils.throttles import OTPCooldownThrottle, TwoFACooldownThrottle
 from .utils import get_user_role, create_otp, verify_otp
-from .validation_serializers import ValidUserSerializer
+from .validation_serializers import ValidUserSerializer, ValidUserIDSerializer
 from .request_serializers import (
     RecaptchaRequestSerializer,
     LoginRequestSerializer,
     TwoFARequestSerializer,
+    RefreshTokenRequestSerializer,
 )
 from .response_serializers import (
     CSRFTokenResponseSerializer,
@@ -148,6 +155,15 @@ class RecaptchaValidationView(APIView):
             ),
         },
         examples=[
+            OpenApiExample(
+                name="reCAPTCHA Request Example",
+                request_only=True,
+                value={
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
+                    "expected_action": "login",
+                },
+            ),
             OpenApiExample(
                 name="Sucess",
                 response_only=True,
@@ -298,7 +314,7 @@ class LoginView(APIView):
             ),
             status.HTTP_403_FORBIDDEN: OpenApiResponse(
                 response=ErrorResponseSerializer,
-                description="Forbidden - reCAPTCHA validation failed",
+                description="Forbidden - reCAPTCHA or user validations failed",
             ),
             status.HTTP_424_FAILED_DEPENDENCY: OpenApiResponse(
                 response=ErrorResponseSerializer,
@@ -316,23 +332,32 @@ class LoginView(APIView):
         examples=[
             OpenApiExample(
                 name="Superuser Login Request Example",
+                request_only=True,
                 value={
                     "email": "superuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
                 name="Staff Login Request Example",
+                request_only=True,
                 value={
                     "email": "staffuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
                 name="Default User Login Request Example",
+                request_only=True,
                 value={
                     "email": "defaultuser@example.com",
                     "password": "Django@123",
+                    "recaptcha_token": "03AFcWeA7V_u-R8N_m7N1wXzO3K7L-reCAPTCHA-TOKEN",
+                    "recaptcha_version": "v3",
                 },
             ),
             OpenApiExample(
@@ -625,7 +650,7 @@ class TwoFAView(APIView):
             ),
             status.HTTP_403_FORBIDDEN: OpenApiResponse(
                 response=ErrorResponseSerializer,
-                description="Forbidden - reCAPTCHA validation failed",
+                description="Forbidden - 2FA validation failed",
             ),
             status.HTTP_429_TOO_MANY_REQUESTS: OpenApiResponse(
                 response=ErrorResponseSerializer,
@@ -639,6 +664,7 @@ class TwoFAView(APIView):
         examples=[
             OpenApiExample(
                 name="2FA Request Example",
+                request_only=True,
                 value={
                     "pre-auth-token": "kdslfjs0f9ujse8fhse8fs-PRE-AUTH-TOKEN",
                     "otp": "000000",
@@ -760,6 +786,251 @@ class TwoFAView(APIView):
             cache.delete(f"pre_auth:{hashed_key}")
 
             return Response(token_res_serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:  # pylint: disable=W0718
+            if isinstance(e, ValidationError):
+                raise e
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RefreshTokenView(APIView):
+    """Refresh JWT Tokens using a Refresh Token."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+
+    @extend_schema(
+        summary="Rotate JWT Tokens using a Refresh Token",
+        description=(
+            "Validates the incoming refresh token, invalidates/blacklists it, and issues a "
+            "completely fresh access token, refresh token, and rotated CSRF protection window."
+        ),
+        request=RefreshTokenRequestSerializer,
+        tags=["Authentication"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response=TokenResponseSerializer,
+                description="Success Branch Outcome - Tokens successfully rotated.",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Bad Request - Invalid request data structure or format.",
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Unauthorized - Token is invalid, expired, or blacklisted.",
+            ),
+            status.HTTP_403_FORBIDDEN: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Forbidden - User validation failed",
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Internal Server Error.",
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                name="Refresh Token Request Example",
+                request_only=True,
+                value={
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-OLD-REFRESH-TOKEN",
+                },
+            ),
+            OpenApiExample(
+                name="Refresh Token Success Response",
+                response_only=True,
+                status_codes=["200"],
+                value={
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-NEW-REFRESH-TOKEN",
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-NEW-ACCESS-TOKEN",
+                    "access_token_expiry": "2026-06-17T12:39:56.789Z",
+                    "user_id": 42,
+                    "user_role": "Default",
+                    "csrf_token": "XYZDeFgHiJkLmNoPqRsTuVwXyZ123456-NEWCSRFTOKEN",
+                    "csrf_token_expiry": "2026-06-18T12:39:56.789Z",
+                },
+            ),
+            OpenApiExample(
+                name="Missing Refresh Token",
+                response_only=True,
+                status_codes=["400"],
+                value={"errors": {"refresh_token": ["Token is required."]}},
+            ),
+            OpenApiExample(
+                name="Invalid or Blacklisted Token Error",
+                response_only=True,
+                status_codes=["401"],
+                value={"error": "Token is invalid or expired"},
+            ),
+            OpenApiExample(
+                name="Invalid User Error",
+                response_only=True,
+                status_codes=["401"],
+                value={"error": "User does not exist"},
+            ),
+            OpenApiExample(
+                name="Deactivated Account Check",
+                response_only=True,
+                status_codes=["403"],
+                value={"error": "Account has been deactivated. Contact your admin"},
+            ),
+            OpenApiExample(
+                name="Unverified Email Check",
+                response_only=True,
+                status_codes=["403"],
+                value={
+                    "error": "Email is not verified. You must verify your email first"
+                },
+            ),
+            OpenApiExample(
+                name="Internal Server Error",
+                response_only=True,
+                status_codes=["500"],
+                value={"error": "Internal Server Error"},
+            ),
+        ],
+    )
+    @method_decorator(csrf_protect)
+    def post(self, request, *args, **kwargs):  # pylint: disable=R0914
+        """Post a request to cycle tokens."""
+        try:
+            req_serializer = RefreshTokenRequestSerializer(data=request.data)
+
+            req_serializer.is_valid(raise_exception=True)
+
+            old_refresh = req_serializer.validated_data["refresh_token"]
+
+            user_id = old_refresh[settings.SIMPLE_JWT.get("USER_ID_CLAIM", "user_id")]
+
+            valid_serializer = ValidUserIDSerializer(
+                data={}, context={"user_id": user_id}
+            )
+
+            valid_serializer.is_valid(raise_exception=True)
+
+            validated_user = valid_serializer.validated_data["user"]
+
+            # Triggers SimpleJWT Rotation & Blacklists previous refresh token
+            old_refresh.blacklist()
+            new_refresh = RefreshToken.for_user(validated_user)
+
+            access_token_expiry = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=settings.ACCESS_TOKEN_TTL)
+                - timedelta(seconds=10)
+            ).isoformat()
+
+            csrf_token = get_token(request)
+            csrf_token_expiry = (
+                datetime.now(timezone.utc)
+                + timedelta(seconds=settings.CSRF_TOKEN_TTL)
+                - timedelta(seconds=10)
+            )
+
+            raw_data = {
+                "refresh_token": str(new_refresh),
+                "access_token": str(new_refresh.access_token),
+                "access_token_expiry": access_token_expiry,
+                "user_id": validated_user.id,
+                "user_role": get_user_role(validated_user),
+                "csrf_token": csrf_token,
+                "csrf_token_expiry": csrf_token_expiry,
+            }
+
+            token_res_serializer = TokenResponseSerializer(data=raw_data)
+
+            token_res_serializer.is_valid(raise_exception=True)
+
+            return Response(token_res_serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:  # pylint: disable=W0718
+            if isinstance(
+                e,
+                (
+                    ValidationError,
+                    UnauthorizedValidationError,
+                    ForbiddenValidationError,
+                ),
+            ):
+                raise e
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LogoutView(APIView):
+    """Logout by blacklisting the refresh token."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [ViewRenderer]
+
+    @extend_schema(
+        summary="Logout",
+        description="Logout by blacklisting the refresh token.",
+        request=RefreshTokenRequestSerializer,
+        tags=["Authentication"],
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                response=SuccessResponseSerializer,
+                description="Logout successful",
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Bad Request - Invalid request parameters",
+            ),
+            status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Internal Server Error.",
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                name="Logout Request Example",
+                request_only=True,
+                value={
+                    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9-OLD-REFRESH-TOKEN",
+                },
+            ),
+            OpenApiExample(
+                name="Sucess",
+                response_only=True,
+                status_codes=["200"],
+                value={
+                    "success": "Logged out successfully",
+                },
+            ),
+            OpenApiExample(
+                name="Missing Refresh Token",
+                response_only=True,
+                status_codes=["400"],
+                value={"errors": {"refresh_token": ["Token is required."]}},
+            ),
+            OpenApiExample(
+                name="Internal Server Error",
+                response_only=True,
+                status_codes=["500"],
+                value={"error": "Internal Server Error"},
+            ),
+        ],
+    )
+    @method_decorator(csrf_protect)
+    def post(self, request, *args, **kwargs):
+        try:
+            req_serializer = RefreshTokenRequestSerializer(
+                data=request.data, context={"is_logout": True}
+            )
+
+            req_serializer.is_valid(raise_exception=True)
+
+            refresh_token = req_serializer.validated_data["refresh_token"]
+
+            if refresh_token:
+                refresh_token.blacklist()
+
+            return Response(
+                {"success": "Logged out successfully"}, status=status.HTTP_200_OK
+            )
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, ValidationError):
                 raise e

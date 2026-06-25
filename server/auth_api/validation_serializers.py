@@ -1,8 +1,26 @@
 from rest_framework import serializers
 from django.conf import settings
 from django.core.cache import cache
-from server.utils.exception import BadRequestValidationError, ForbiddenValidationError
+from django.contrib.auth import get_user_model
+from server.utils.exception import (
+    BadRequestValidationError,
+    UnauthorizedValidationError,
+    ForbiddenValidationError,
+)
 from server.utils.encryption import generate_cache_key
+
+
+def validate_user_attributes(user, endpoint):
+    if user.auth_provider != "email" and endpoint == "login":
+        return f"This process cannot be used, as user is created using {user.auth_provider}"
+
+    if not user.is_active:
+        return "Account has been deactivated. Contact your admin"
+
+    if not user.is_email_verified:
+        return "Email is not verified. You must verify your email first"
+
+    return None
 
 
 class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
@@ -85,25 +103,34 @@ class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
 
             raise BadRequestValidationError({"error": "Invalid credentials"})
 
-        if user.auth_provider != "email":
-            raise ForbiddenValidationError(
-                {
-                    "error": (
-                        "This process cannot be used, "
-                        f"as user is created using {user.auth_provider}"
-                    )
-                }
-            )
+        error = validate_user_attributes(user, "login")
 
-        if not user.is_active:
-            raise ForbiddenValidationError(
-                {"error": "Account has been deactivated. Contact your admin"}
-            )
+        if error:
+            raise ForbiddenValidationError({"error": error})
 
-        if not user.is_email_verified:
-            raise ForbiddenValidationError(
-                {"error": "Email is not verified. You must verify your email first"}
-            )
+        attrs["user"] = user
+        return attrs
+
+
+class ValidUserIDSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Validates an user_id provided via context against rules.
+    """
+
+    def validate(self, attrs):
+        user_id = self.context.get("user_id")
+
+        User = get_user_model()
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist as exc:
+            raise UnauthorizedValidationError({"error": "User does not exist"}) from exc
+
+        error = validate_user_attributes(user, "refresh")
+
+        if error:
+            raise ForbiddenValidationError({"error": error})
 
         attrs["user"] = user
         return attrs
