@@ -1,5 +1,8 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from server.schema_serializers import BaseRecaptchaSerializer
+from server.utils.exception import UnauthorizedValidationError
 
 
 class RecaptchaRequestSerializer(BaseRecaptchaSerializer):  # pylint: disable=W0223
@@ -48,3 +51,69 @@ class LoginRequestSerializer(BaseRecaptchaSerializer):  # pylint: disable=W0223
             "null": "Password is required.",
         },
     )
+
+
+class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Handles 2FA credentials.
+    """
+
+    # pylint: disable=R0801
+    pre_auth_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The raw pre-auth token to be used in subsequent requests.",
+        error_messages={
+            "required": "Token is required.",
+            "blank": "Token is required.",
+            "null": "Token is required.",
+        },
+    )
+    # pylint: enable=R0801
+
+    otp = serializers.IntegerField(
+        required=True,
+        allow_null=False,
+        help_text="The One time password to be used in subsequent requests.",
+        error_messages={
+            "required": "OTP is required.",
+            "null": "OTP is required.",
+            "invalid": "OTP is invalid.",
+        },
+    )
+
+
+class RefreshTokenRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Handles refresh token validation and payload initialization.
+    """
+
+    refresh_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The valid refresh token received during login or previous refresh.",
+        error_messages={
+            "required": "Token is required.",
+            "blank": "Token is required.",
+            "null": "Token is required.",
+        },
+    )
+
+    def validate_refresh_token(self, value):
+        """
+        Validates the cryptographic signature and lifecycle status of the refresh token.
+        """
+        try:
+            token_instance = RefreshToken(value)
+        except (TokenError, InvalidToken) as exc:
+            # If LogoutView is calling this method skip token validation
+            if self.context.get("is_logout", False):
+                return None
+
+            raise UnauthorizedValidationError(
+                {"error": "Token is invalid or expired"}
+            ) from exc
+
+        return token_instance
