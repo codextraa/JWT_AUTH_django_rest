@@ -72,14 +72,15 @@ class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
     )
     # pylint: enable=R0801
 
-    otp = serializers.IntegerField(
+    otp = serializers.CharField(
         required=True,
         allow_null=False,
-        help_text="The One time password to be used in subsequent requests.",
+        allow_blank=False,
+        help_text="The One Time Password to be used in subsequent requests.",
         error_messages={
             "required": "OTP is required.",
+            "blank": "OTP is required.",
             "null": "OTP is required.",
-            "invalid": "OTP is invalid.",
         },
     )
 
