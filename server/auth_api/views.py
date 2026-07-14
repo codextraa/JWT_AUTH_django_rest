@@ -32,7 +32,7 @@ from server.schema_serializers import (
     SuccessResponseSerializer,
     ErrorResponseSerializer,
 )
-from server.utils.throttles import OTPCooldownThrottle, TwoFACooldownThrottle
+from .throttles import OTPCooldownThrottle, TwoFACooldownThrottle
 from .utils import get_user_role, create_otp, verify_otp
 from .validation_serializers import ValidUserSerializer, ValidUserIDSerializer
 from .request_serializers import (
