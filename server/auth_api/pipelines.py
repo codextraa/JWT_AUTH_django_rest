@@ -59,7 +59,7 @@ def create_custom_user(
     """
     Handles user instance initialization for new user
     """
-    if not user or not is_new:
+    if not is_new:
         return {"user": user, "is_new": is_new, "is_update": is_update}
 
     email = details.get("email", "").lower()
