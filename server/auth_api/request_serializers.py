@@ -72,14 +72,15 @@ class TwoFARequestSerializer(serializers.Serializer):  # pylint: disable=W0223
     )
     # pylint: enable=R0801
 
-    otp = serializers.IntegerField(
+    otp = serializers.CharField(
         required=True,
         allow_null=False,
-        help_text="The One time password to be used in subsequent requests.",
+        allow_blank=False,
+        help_text="The One Time Password to be used in subsequent requests.",
         error_messages={
             "required": "OTP is required.",
+            "blank": "OTP is required.",
             "null": "OTP is required.",
-            "invalid": "OTP is invalid.",
         },
     )
 
@@ -117,3 +118,33 @@ class RefreshTokenRequestSerializer(serializers.Serializer):  # pylint: disable=
             ) from exc
 
         return token_instance
+
+
+class SocialLoginRequestSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Handles Social Login credentials.
+    """
+
+    provider = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The social provider name",
+        error_messages={
+            "required": "Provider is required.",
+            "blank": "Provider is required.",
+            "null": "Provider is required.",
+        },
+    )
+
+    social_auth_token = serializers.CharField(
+        required=True,
+        allow_null=False,
+        allow_blank=False,
+        help_text="The access token or ID token received from Auth.js",
+        error_messages={
+            "required": "Token is required.",
+            "blank": "Token is required.",
+            "null": "Token is required.",
+        },
+    )
