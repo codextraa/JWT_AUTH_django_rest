@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function Page() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col items-center justify-center p-6 sm:p-12">
