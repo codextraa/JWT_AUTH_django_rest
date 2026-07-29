@@ -55,9 +55,7 @@ export class ApiClient {
       if (contentType.includes("application/json")) {
         try {
           const errorData = await response.json();
-          if (errorData.errors) {
-            return { error: errorData.errors }; // Return specific error
-          }
+          return errorData;
         } catch (e) {
           console.error("Error parsing error response:", e);
           return { error: "Unexpected error occurred." };

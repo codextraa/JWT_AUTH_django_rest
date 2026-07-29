@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     "social_django",
     "drf_spectacular",
     "phonenumber_field",
-    "phone_verify",
+    # "phone_verify",
     "storages",
     "django_filters",
     "django.contrib.admin",
