@@ -126,6 +126,7 @@ class CSRFTokenView(APIView):
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, ValidationError):
                 raise e
+            logger.error("Error getting CSRF token: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -265,6 +266,7 @@ class RecaptchaValidationView(APIView):
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, (ValidationError, BadRequestValidationError)):
                 raise e
+            logger.error("Error validating reCAPTCHA: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -614,6 +616,7 @@ class LoginView(APIView):
                 (ValidationError, BadRequestValidationError, ForbiddenValidationError),
             ):
                 raise e
+            logger.error("Login failed: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -798,6 +801,7 @@ class TwoFAView(APIView):
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, ValidationError):
                 raise e
+            logger.error("TwoFA failed: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -963,6 +967,7 @@ class RefreshTokenView(APIView):
                 ),
             ):
                 raise e
+            logger.error("Token refresh failed: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -970,8 +975,8 @@ class RefreshTokenView(APIView):
 
 class SocialLoginView(APIView):
     """
-    Unified Social Login View. Validates token payload forwarded from Auth.js
-    and executes custom social auth pipelines.
+    Unified Social Login View. Validates authorization code payload forwarded
+    from Custom SDK and executes custom social auth pipelines.
     """
 
     permission_classes = [AllowAny]
@@ -980,7 +985,7 @@ class SocialLoginView(APIView):
     @extend_schema(
         summary="Social Authentication",
         description=(
-            "Accepts a social auth provider token verified by Auth.js, executes the social "
+            "Accepts a social auth provider code verified by the SDK, executes the social "
             "login or signup backend pipeline, generates JWT access and refresh tokens."
         ),
         request=SocialLoginRequestSerializer,
@@ -988,7 +993,7 @@ class SocialLoginView(APIView):
         responses={
             status.HTTP_200_OK: OpenApiResponse(
                 response=TokenResponseSerializer,
-                description="Success - JWT tokens generated",
+                description="Success - Session ID returned",
             ),
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(
                 response=ErrorResponseSerializer,
@@ -1017,7 +1022,8 @@ class SocialLoginView(APIView):
                 request_only=True,
                 value={
                     "provider": "google-oauth2",
-                    "social_auth_token": "ya29.a0AfH6SMC-EXAMPLE-TOKEN-FROM-AUTHJS",
+                    "social_auth_code": "ya29.a0AfH6SMC-EXAMPLE-CODE-FROM-SDK",
+                    "redirect_uri": "http://localhost:8000/",
                 },
             ),
             OpenApiExample(
@@ -1041,10 +1047,16 @@ class SocialLoginView(APIView):
                 value={"error": {"provider": ["Provider is required."]}},
             ),
             OpenApiExample(
-                name="Missing Social Token",
+                name="Missing Social Code",
                 response_only=True,
                 status_codes=["400"],
-                value={"error": {"social_auth_token": ["Token is required."]}},
+                value={"error": {"social_auth_code": ["Code is required."]}},
+            ),
+            OpenApiExample(
+                name="Missing Redirect URI",
+                response_only=True,
+                status_codes=["400"],
+                value={"error": {"redirect_uri": ["Redirect URI is required."]}},
             ),
             OpenApiExample(
                 name="Social Provider Auth Failed",
@@ -1122,14 +1134,27 @@ class SocialLoginView(APIView):
             req_serializer.is_valid(raise_exception=True)
             validated_data = req_serializer.validated_data
 
-            provider_token = validated_data["social_auth_token"]
             provider_name = validated_data["provider"]
+            social_auth_code = validated_data["social_auth_code"]
+            redirect_uri = validated_data["redirect_uri"]
 
             strategy = load_strategy(request)
             backend = load_backend(
-                strategy=strategy, name=provider_name, redirect_uri=None
+                strategy=strategy, name=provider_name, redirect_uri=redirect_uri
             )
-            user = backend.do_auth(provider_token)
+
+            # Disable state params (Handled by Server Side SDK)
+            backend.REDIRECT_STATE = False
+            backend.STATE_PARAMETER = False
+
+            # Set the code and redirect_uri in the request
+            backend.data = {
+                "code": social_auth_code,
+                "redirect_uri": redirect_uri,
+                **request.data,
+            }
+
+            user = backend.auth_complete()
 
             if not user:
                 return Response(
@@ -1172,8 +1197,8 @@ class SocialLoginView(APIView):
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, (ValidationError, ForbiddenValidationError)):
                 raise e
+            logger.error("Social authentication failed: %s", str(e))
             if isinstance(e, AuthException):
-                logger.error("Social authentication failed: %s", str(e))
                 return Response(
                     {"error": "Social authentication failed. Something went wrong."},
                     status=status.HTTP_401_UNAUTHORIZED,
@@ -1258,6 +1283,7 @@ class LogoutView(APIView):
         except Exception as e:  # pylint: disable=W0718
             if isinstance(e, ValidationError):
                 raise e
+            logger.error("Logout failed: %s", str(e))
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
