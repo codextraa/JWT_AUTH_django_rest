@@ -107,7 +107,7 @@ WSGI_APPLICATION = "server.wsgi.application"
 
 PYTHONUNBUFFERED = 1
 
-# Database
+# * Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
@@ -122,7 +122,7 @@ DATABASES = {
 }
 
 
-# Password validation
+# * Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -152,13 +152,167 @@ USE_I18N = True
 
 USE_TZ = True
 
-# Amazon settings
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# * REST Framework Settings
+
+# Never give comma after drf_spectacular.openapi.AutoSchema
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": ("drf_spectacular.openapi.AutoSchema"),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.IsAdminUser",
+    ),
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_THROTTLE_CLASSES": (),
+    # "DEFAULT_THROTTLE_RATES": {
+    #     "email_otp": "15/min",
+    #     "email_verify": "15/min",
+    #     "password_reset": "15/min",
+    #     "phone_otp": "15/min",
+    # },
+    "ORDERING_PARAM": "ordering",
+}
+
+# * DRF Spectacular Settings
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "JWT DJREST AUTH API",
+    "DESCRIPTION": "API for JWT Authentication Template",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY": [
+        {
+            "NEXT_API_SECRET_KEY": [],
+            "CsrfToken": [],
+        },
+    ],
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "NEXT_API_SECRET_KEY": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "NEXT-X-API-KEY",
+                "description": "NEXT JS Frontend API Key (required alongside JWT)",
+            },
+            "CsrfToken": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-CSRFToken",
+                "description": "Django CSRF token required for state-changing requests.",
+            },
+        }
+    },
+}
+
+# * Time to Live (TTL) in seconds
+
+ACCESS_TOKEN_TTL = 5 * 60 + 10  # 5 minutes and 10 seconds
+REFRESH_TOKEN_TTL = 24 * 60 * 60  # 1 day
+CSRF_TOKEN_TTL = 24 * 60 * 60 + 10  # 1 day and 10 seconds
+PRE_AUTH_OTP_TTL = 10 * 60  # 10 minutes
+OTP_COOLDOWN_TTL = 60  # 1 minute
+DUMMY_COOLDOWN_TTL = 600  # 10 minutes
+INVALID_OTP_COOLDOWN_TTL = 60  # 1 minute
+LOGIN_FAILURE_ATTEMPT_TTL = 60 * 60  # 1 hour
+
+# * Simple JWT Settings
+
+REST_USE_JWT = True
+
+SIMPLE_JWT = {
+    # 10 second window for access_token_expiry setup
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        seconds=ACCESS_TOKEN_TTL
+    ),  # 5 minutes and 10 seconds
+    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=REFRESH_TOKEN_TTL),  # 1 day
+    # Set the RS256 algorithm
+    "ALGORITHM": "RS256",
+    # Set the private key for signing the token
+    "SIGNING_KEY": PRIVATE_KEY,
+    # Set the public key for verifying the token
+    "VERIFYING_KEY": PUBLIC_KEY,
+    # Token Settings
+    "USER_ID_CLAIM": "user_id",
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
+# * Redis
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{os.environ.get('REDIS_HOST')}:{os.environ.get('REDIS_PORT')}/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+# * Celery
+
+CELERY_REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+CELERY_REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+CELERY_BROKER_URL = f"redis://{CELERY_REDIS_HOST}:{CELERY_REDIS_PORT}/2"
+CELERY_RESULT_BACKEND = f"redis://{CELERY_REDIS_HOST}:{CELERY_REDIS_PORT}/2"
+CELERY_RESULT_EXPIRES = 3600
+
+CELERY_WORKER_CONCURRENCY = int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+
+# * Session Settings
+
+SESSION_COOKIE_SECURE = True  # Secure session cookies
+
+# * CORS Settings
+
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(
+    ","
+)
+CORS_ALLOW_CREDENTIALS = True
+
+# * CSRF Settings
+
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(
+    ","
+)
+CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
+CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
+CSRF_COOKIE_SAMESITE = "Lax"  # Prevent cross-origin requests
+CSRF_COOKIE_AGE = CSRF_TOKEN_TTL  # 1 day and 10 seconds
+
+# * Security Settings
+
+MAX_LOGIN_FAILURE_LIMIT = 5
+MAX_OTP_FAILURE_LIMIT = 3
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)  # Only if Nginx is reverse proxied
+
+# * User Settings
+
+AUTH_USER_MODEL = "core_db.User"
+
+# * Amazon settings
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION_NAME = os.getenv("AWS_REGION_NAME")
 
-# Static files (CSS, JavaScript, Images)
+# * Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 # Global Static URL
@@ -197,28 +351,7 @@ else:
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# Redis
-
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{os.environ.get('REDIS_HOST')}:{os.environ.get('REDIS_PORT')}/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-    }
-}
-
-# User Settings
-
-AUTH_USER_MODEL = "core_db.User"
-
-# Authentication backends (custom + social auths)
+# * Authentication backends (custom + social auths)
 # If one fails the next one runs, therefore don't use ModelBackend in case of CustomAuthBackend
 
 AUTHENTICATION_BACKENDS = (
@@ -233,7 +366,7 @@ AUTHENTICATION_BACKENDS = (
     # "django.contrib.auth.backends.ModelBackend",
 )
 
-# Pipelines
+# * Pipelines
 
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
@@ -255,7 +388,7 @@ SOCIAL_AUTH_DISCONNECT_PIPELINE = (
     "social_core.pipeline.disconnect.disconnect",
 )
 
-# Social django global settings
+# * Social django global settings
 
 HTTP_PROXY = os.getenv("SOCIAL_AUTH_HTTP_PROXY_IP")
 HTTPS_PROXY = os.getenv("SOCIAL_AUTH_HTTPS_PROXY_IP")
@@ -277,7 +410,7 @@ else:
 
 SOCIAL_AUTH_REVOKE_TOKENS_ON_DISCONNECT = True
 
-# Social auth settings per provider
+# * Social auth settings per provider
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv("GOOGLE_CLIENT_ID")
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -319,136 +452,19 @@ SOCIAL_AUTH_LINKEDIN_OPENIDCONNECT_KEY = os.getenv("LINKEDIN_CLIENT_ID")
 SOCIAL_AUTH_LINKEDIN_OPENIDCONNECT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 SOCIAL_AUTH_LINKEDIN_OPENIDCONNECT_SCOPE = ["openid", "profile", "email"]
 
-# Twilio Settings
-
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-
-# Recaptcha Settings
+# * Recaptcha Settings
 
 RECAPTCHA_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "xxxxxx")
 RECAPTCHA_SITE_KEY_V2 = os.getenv("RECAPTCHA_SITE_KEY_V2")
 RECAPTCHA_SITE_KEY_V3 = os.getenv("RECAPTCHA_SITE_KEY_V3")
 
-# REST Framework Settings
+# * Email Settings
 
-# Never give comma after drf_spectacular.openapi.AutoSchema
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": ("drf_spectacular.openapi.AutoSchema"),
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-        "rest_framework.permissions.IsAdminUser",
-    ),
-    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
-    "DEFAULT_THROTTLE_CLASSES": (),
-    # "DEFAULT_THROTTLE_RATES": {
-    #     "email_otp": "15/min",
-    #     "email_verify": "15/min",
-    #     "password_reset": "15/min",
-    #     "phone_otp": "15/min",
-    # },
-    "ORDERING_PARAM": "ordering",
-}
+# * Console
 
-# DRF Spectacular Settings
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-SPECTACULAR_SETTINGS = {
-    "TITLE": "JWT DJREST AUTH API",
-    "DESCRIPTION": "API for JWT Authentication Template",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-    "SECURITY": [
-        {
-            "NEXT_API_SECRET_KEY": [],
-            "CsrfToken": [],
-        },
-    ],
-    # Define the security schemes
-    "APPEND_COMPONENTS": {
-        "securitySchemes": {
-            "NEXT_API_SECRET_KEY": {
-                "type": "apiKey",
-                "in": "header",
-                "name": "NEXT-X-API-KEY",
-                "description": "NEXT JS Frontend API Key (required alongside JWT)",
-            },
-            "CsrfToken": {
-                "type": "apiKey",
-                "in": "header",
-                "name": "X-CSRFToken",
-                "description": "Django CSRF token required for state-changing requests.",
-            },
-        }
-    },
-}
-
-# Time to Live (TTL) in seconds
-
-ACCESS_TOKEN_TTL = 5 * 60 + 10  # 5 minutes and 10 seconds
-REFRESH_TOKEN_TTL = 24 * 60 * 60  # 1 day
-CSRF_TOKEN_TTL = 24 * 60 * 60 + 10  # 1 day and 10 seconds
-PRE_AUTH_OTP_TTL = 10 * 60  # 10 minutes
-OTP_COOLDOWN_TTL = 60  # 1 minute
-DUMMY_COOLDOWN_TTL = 600  # 10 minutes
-INVALID_OTP_COOLDOWN_TTL = 60  # 1 minute
-LOGIN_FAILURE_ATTEMPT_TTL = 60 * 60  # 1 hour
-
-# Simple JWT Settings
-
-REST_USE_JWT = True
-
-SIMPLE_JWT = {
-    # 10 second window for access_token_expiry setup
-    "ACCESS_TOKEN_LIFETIME": timedelta(
-        seconds=ACCESS_TOKEN_TTL
-    ),  # 5 minutes and 10 seconds
-    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=REFRESH_TOKEN_TTL),  # 1 day
-    # Set the RS256 algorithm
-    "ALGORITHM": "RS256",
-    # Set the private key for signing the token
-    "SIGNING_KEY": PRIVATE_KEY,
-    # Set the public key for verifying the token
-    "VERIFYING_KEY": PUBLIC_KEY,
-    # Token Settings
-    "USER_ID_CLAIM": "user_id",
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-}
-
-# CORS Settings
-
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(
-    ","
-)
-
-CORS_ALLOW_CREDENTIALS = True
-
-# CSRF Settings
-
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(
-    ","
-)
-
-CSRF_COOKIE_SECURE = True  # Ensures the CSRF cookie is sent only over HTTPS
-CSRF_COOKIE_HTTPONLY = True  # Must be False since JavaScript needs to read the token
-CSRF_COOKIE_SAMESITE = "Lax"  # Prevent cross-origin requests
-CSRF_COOKIE_AGE = CSRF_TOKEN_TTL  # 1 day and 10 seconds
-
-# Session Settings
-
-SESSION_COOKIE_SECURE = True  # Secure session cookies
-
-# Email Settings
-
-# Console
-
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
-# SMTP
+# #* SMTP
 
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # EMAIL_USE_TLS = True
@@ -458,23 +474,22 @@ SESSION_COOKIE_SECURE = True  # Secure session cookies
 # EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# AWS SES
+# #* AWS SES
 
-EMAIL_BACKEND = "django_ses.SESBackend"
-AWS_SES_REGION_NAME = os.getenv("AWS_REGION_NAME", "ap-south-1")
-AWS_SES_REGION_ENDPOINT = f"email.{AWS_SES_REGION_NAME}.amazonaws.com"
-DEFAULT_FROM_EMAIL = "no-reply@codextra.website"
-SERVER_EMAIL = "no-reply@codextra.website"
+# EMAIL_BACKEND = "django_ses.SESBackend"
+# AWS_SES_REGION_NAME = os.getenv("AWS_REGION_NAME", "ap-south-1")
+# AWS_SES_REGION_ENDPOINT = f"email.{AWS_SES_REGION_NAME}.amazonaws.com"
+# DEFAULT_FROM_EMAIL = "no-reply@codextra.website"
+# SERVER_EMAIL = "no-reply@codextra.website"
 
-# Security Settings
-MAX_LOGIN_FAILURE_LIMIT = 5
-MAX_OTP_FAILURE_LIMIT = 3
-SECURE_PROXY_SSL_HEADER = (
-    "HTTP_X_FORWARDED_PROTO",
-    "https",
-)  # Only if Nginx is reverse proxied
+# * Twilio Settings
 
-# Monitoring
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID")
+
+# * Monitoring
 
 LOGGING = {
     "version": 1,
@@ -506,7 +521,7 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
-        "botocore": {  # botocore logger (for S3/AWS interactions)
+        "botocore": {  # botocore logger (for AWS interactions)
             "level": "WARNING",
             "handlers": ["console"],
             "propagate": False,
