@@ -12,7 +12,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 User = get_user_model()
 
 
-class RefreshViewTests(APITestCase):
+class LogoutViewTests(APITestCase):
 
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=True)
@@ -100,7 +100,7 @@ class RefreshViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
-class RefreshViewDBTests(APITestCase):
+class LogoutViewDBTests(APITestCase):
 
     def setUp(self):
         self.client = APIClient(enforce_csrf_checks=True)
