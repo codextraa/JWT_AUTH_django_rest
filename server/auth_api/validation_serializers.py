@@ -7,7 +7,7 @@ from server.utils.exception import (
     UnauthorizedValidationError,
     ForbiddenValidationError,
 )
-from server.utils.encryption import generate_cache_key
+from server.utils.encryption import generate_hash_key
 from .utils import validate_user_attributes
 
 
@@ -32,8 +32,8 @@ class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
                 if error:
                     raise ForbiddenValidationError({"error": error})
 
-                hashed_user_key = generate_cache_key(user_obj.id)
-                failed_attempts_key = f"login_failures:{hashed_user_key}"
+                hashed_user_key = generate_hash_key(user_obj.id)
+                failed_attempts_key = f"login-failures:{hashed_user_key}"
 
                 failed_attempts = cache.get(failed_attempts_key)
 
@@ -82,8 +82,8 @@ class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
                     )
             else:
                 # Dummy key for burning expected CPU cycles to neutralize timing attacks
-                dummy_hash_key = generate_cache_key("ghost_user")
-                dummy_key = f"ghost_failures:{dummy_hash_key}"
+                dummy_hash_key = generate_hash_key("ghost_user")
+                dummy_key = f"ghost-failures:{dummy_hash_key}"
 
                 dummy_attempts = cache.get(dummy_key)
                 if dummy_attempts is not None:
