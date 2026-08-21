@@ -1,17 +1,19 @@
 from rest_framework import serializers
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from server.utils.exception import (
     BadRequestValidationError,
     UnauthorizedValidationError,
     ForbiddenValidationError,
+    NotFoundValidationError,
 )
 from server.utils.encryption import generate_hash_key
 from .utils import validate_user_attributes
 
 
-class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
+class ValidUserLoginSerializer(serializers.Serializer):  # pylint: disable=W0223
     """
     Validates an authenticated user object provided via context against rules.
     Also handles failed login attempt accounting and brute-force lockouts.
@@ -109,6 +111,7 @@ class ValidUserIDSerializer(serializers.Serializer):  # pylint: disable=W0223
 
     def validate(self, attrs):
         user_id = self.context.get("user_id")
+        endpoint = self.context.get("endpoint")
 
         User = get_user_model()
 
@@ -117,7 +120,47 @@ class ValidUserIDSerializer(serializers.Serializer):  # pylint: disable=W0223
         except User.DoesNotExist as exc:
             raise UnauthorizedValidationError({"error": "User does not exist"}) from exc
 
-        error = validate_user_attributes(user, "refresh")
+        error = validate_user_attributes(user, endpoint)
+
+        if error:
+            raise ForbiddenValidationError({"error": error})
+
+        attrs["user"] = user
+        return attrs
+
+
+class ValidUserSerializer(serializers.Serializer):  # pylint: disable=W0223
+    """
+    Validates an user object provided via context against rules.
+    """
+
+    def validate(self, attrs):
+        user = None
+        endpoint = self.context.get("endpoint")
+
+        User = get_user_model()
+
+        try:
+            if endpoint == "change-password":
+                email_or_username = self.context.get("email_or_username")
+                user = (
+                    get_user_model()
+                    .objects.only("id")
+                    .get(
+                        Q(email__exact=email_or_username.lower())
+                        | Q(username__exact=email_or_username)
+                    )
+                )
+
+            if endpoint == "verify-email":
+                email = self.context.get("email")
+                user = (
+                    get_user_model().objects.only("id").get(email__exact=email.lower())
+                )
+        except User.DoesNotExist as exc:
+            raise NotFoundValidationError({"error": "User does not exist"}) from exc
+
+        error = validate_user_attributes(user, endpoint)
 
         if error:
             raise ForbiddenValidationError({"error": error})
