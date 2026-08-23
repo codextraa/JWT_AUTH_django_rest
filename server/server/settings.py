@@ -217,11 +217,12 @@ ACCESS_TOKEN_TTL = 5 * 60 + 10  # 5 minutes and 10 seconds
 REFRESH_TOKEN_TTL = 24 * 60 * 60  # 1 day
 CSRF_TOKEN_TTL = 24 * 60 * 60 + 10  # 1 day and 10 seconds
 PRE_AUTH_OTP_TTL = 10 * 60  # 10 minutes
-OTP_COOLDOWN_TTL = 60  # 1 minute
 LINK_EXPIRY_TTL = 10 * 60  # 10 minutes
+OTP_COOLDOWN_TTL = 60  # 1 minute
 LINK_COOLDOWN_TTL = 60  # 1 minute
-DUMMY_COOLDOWN_TTL = 600  # 10 minutes
 INVALID_OTP_COOLDOWN_TTL = 60  # 1 minute
+TWILIO_OTP_COOLDOWN_TTL = 60  # 1 minute
+DUMMY_COOLDOWN_TTL = 600  # 10 minutes
 LOGIN_FAILURE_ATTEMPT_TTL = 60 * 60  # 1 hour
 
 # * Simple JWT Settings
