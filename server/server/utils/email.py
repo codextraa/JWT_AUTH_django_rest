@@ -76,7 +76,7 @@ class Email:
             "action_button_text": action_button_text,
         }
 
-        dispatch_email.delay(email_context)
+        dispatch_email.delay(email_context, "emails/security_email.html")
 
     def send_otp_email(self, prefix):
         """
@@ -163,5 +163,6 @@ class Email:
         cache.delete(f"{prefix}-cooldown:{user_lock_key}")
 
         return {
+            "hashed_key": hashed_key,
             "user_id": decrypted_data["user_id"],
         }

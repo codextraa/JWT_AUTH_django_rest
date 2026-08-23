@@ -798,8 +798,7 @@ class TwoFAView(APIView):
 
             token_res_serializer.is_valid(raise_exception=True)
 
-            hashed_key = generate_hash_key(req_validated_data["pre_auth_token"])
-            cache.delete(f"pre-auth-otp:{hashed_key}")
+            cache.delete(f"pre-auth-otp:{otp_verification["hashed_key"]}")
 
             return Response(token_res_serializer.data, status=status.HTTP_200_OK)
         except Exception as e:  # pylint: disable=W0718
@@ -842,6 +841,10 @@ class RefreshTokenView(APIView):
                 response=ErrorResponseSerializer,
                 description="Forbidden - User validation failed",
             ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                response=ErrorResponseSerializer,
+                description="Not Found - User not found",
+            ),
             status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(
                 response=ErrorResponseSerializer,
                 description="Internal Server Error.",
@@ -882,12 +885,6 @@ class RefreshTokenView(APIView):
                 value={"error": "Token is invalid or expired"},
             ),
             OpenApiExample(
-                name="Invalid User Error",
-                response_only=True,
-                status_codes=["401"],
-                value={"error": "User does not exist"},
-            ),
-            OpenApiExample(
                 name="Deactivated Account Check",
                 response_only=True,
                 status_codes=["403"],
@@ -900,6 +897,12 @@ class RefreshTokenView(APIView):
                 value={
                     "error": "Email is not verified. You must verify your email first"
                 },
+            ),
+            OpenApiExample(
+                name="User Not Found",
+                response_only=True,
+                status_codes=["404"],
+                value={"error": "User does not exist"},
             ),
             OpenApiExample(
                 name="Internal Server Error",
@@ -926,6 +929,7 @@ class RefreshTokenView(APIView):
                 context={
                     "user_id": user_id,
                     "endpoint": "refresh",
+                    "validate": True,
                 },
             )
 
@@ -972,6 +976,7 @@ class RefreshTokenView(APIView):
                     ValidationError,
                     UnauthorizedValidationError,
                     ForbiddenValidationError,
+                    NotFoundValidationError,
                 ),
             ):
                 raise e

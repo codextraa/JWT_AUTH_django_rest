@@ -5,7 +5,6 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 from server.utils.exception import (
     BadRequestValidationError,
-    UnauthorizedValidationError,
     ForbiddenValidationError,
     NotFoundValidationError,
 )
@@ -106,24 +105,26 @@ class ValidUserLoginSerializer(serializers.Serializer):  # pylint: disable=W0223
 
 class ValidUserIDSerializer(serializers.Serializer):  # pylint: disable=W0223
     """
-    Validates an user_id provided via context against rules.
+    Gets a user using user_id and validates if provided via context against rules.
     """
 
     def validate(self, attrs):
         user_id = self.context.get("user_id")
         endpoint = self.context.get("endpoint")
+        validate = self.context.get("validate")
 
         User = get_user_model()
 
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist as exc:
-            raise UnauthorizedValidationError({"error": "User does not exist"}) from exc
+            raise NotFoundValidationError({"error": "User does not exist"}) from exc
 
-        error = validate_user_attributes(user, endpoint)
+        if validate:
+            error = validate_user_attributes(user, endpoint)
 
-        if error:
-            raise ForbiddenValidationError({"error": error})
+            if error:
+                raise ForbiddenValidationError({"error": error})
 
         attrs["user"] = user
         return attrs
