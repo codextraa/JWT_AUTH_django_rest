@@ -203,7 +203,7 @@ class RefreshViewDBTests(APITestCase):
         )
 
     # ==========================================
-    # UNAUTHORIZED VALIDATION (401)
+    # NOT FOUND VALIDATION (404)
     # ==========================================
 
     def test_refresh_token_fails_user_does_not_exist(self):
@@ -212,7 +212,7 @@ class RefreshViewDBTests(APITestCase):
 
         response = self.client.post(self.url, data=self.payload, **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         error_msg = str(response.data["error"])
         self.assertEqual(
             error_msg,
